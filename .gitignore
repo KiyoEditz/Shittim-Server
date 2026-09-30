@@ -86,8 +86,11 @@ Thumbs.db
 # Backup files
 *.bak
 *.backup
+*.rar
+*.zip
 hosts.bak
 hosts.backup
+scratch_logs_2/
 
 # Protocol dump + local dump tooling/cache
 /protocol_dump.log

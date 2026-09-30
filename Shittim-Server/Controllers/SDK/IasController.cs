@@ -85,10 +85,17 @@ namespace Shittim_Server.Controllers.SDK
 
             var session = RememberSession(payload, webToken, identity, existingSession?.Ticket);
 
+            // gamescale.core.dll's GetTicketResponse handler (0x18004882A) parses this JSON body:
+            // 1. Checks HTTP status == 200 (0xC8).
+            // 2. Accesses ["access_token"] via nlohmann::json operator[] (0x180048C0D) and requires value_t::string (cmp byte ptr [rax], 3 at 0x180048C2A).
+            //    If missing, json creates a null value, failing the check and throwing an exception (0x180048D77 -> 0x18036AAB8),
+            //    leading to "IASGetTicketByWebToken GetTicketFailed." and in-game error popup (140001).
+            // 3. Accesses ["expires_in"] (0x180048C99) and calls get<int>() (0x180048CA1), requiring a numeric integer.
+            // 4. errorCode and code must be numeric 0.
             return Results.Json(new
             {
-                errorCode = "0",
-                error_code = "0",
+                errorCode = 0,
+                error_code = 0,
                 errorText = "",
                 error_text = "",
                 errorDetail = "",
@@ -98,11 +105,15 @@ namespace Shittim_Server.Controllers.SDK
                 status_code = 200,
                 responseHandleCode = 0,
                 response_handle_code = 0,
-                code = "0",
+                code = 0,
                 message = "",
                 ticket = session.Ticket,
                 uid = DefaultUid,
                 web_token = session.WebToken,
+                access_token = session.WebToken,
+                accessToken = session.WebToken,
+                expires_in = 2592000,
+                expiresIn = 2592000,
                 local_session_user_id = session.Identity.LocalSessionUserId,
                 local_session_type = session.Identity.LocalSessionType,
                 linked_platform_user_id = session.Identity.LocalSessionUserId,
@@ -205,12 +216,18 @@ namespace Shittim_Server.Controllers.SDK
             var ticket = $"shittim-link-ticket:{Guid.NewGuid():N}";
             return Results.Json(new
             {
+                errorCode = 0,
+                error_code = 0,
+                errorText = "",
+                error_text = "",
+                errorDetail = "",
+                error_detail = "",
                 status = "success",
                 statusCode = 200,
                 status_code = 200,
                 responseHandleCode = 0,
                 response_handle_code = 0,
-                code = "0",
+                code = 0,
                 message = "",
                 link_ticket = ticket,
                 linkTicket = ticket,
@@ -407,8 +424,8 @@ namespace Shittim_Server.Controllers.SDK
 
             return Results.Json(new
             {
-                errorCode = "0",
-                error_code = "0",
+                errorCode = 0,
+                error_code = 0,
                 errorText = "",
                 error_text = "",
                 errorDetail = "",
@@ -418,7 +435,7 @@ namespace Shittim_Server.Controllers.SDK
                 status_code = 200,
                 responseHandleCode = 0,
                 response_handle_code = 0,
-                code = "0",
+                code = 0,
                 message = "",
                 state = Guid.NewGuid().ToString("N"),
                 nonce = Guid.NewGuid().ToString("N")
@@ -475,8 +492,8 @@ namespace Shittim_Server.Controllers.SDK
 
             return Results.Json(new
             {
-                errorCode = "0",
-                error_code = "0",
+                errorCode = 0,
+                error_code = 0,
                 errorText = "",
                 error_text = "",
                 errorDetail = "",
@@ -486,7 +503,7 @@ namespace Shittim_Server.Controllers.SDK
                 status_code = 200,
                 responseHandleCode = 0,
                 response_handle_code = 0,
-                code = "0",
+                code = 0,
                 message = "",
                 uid = DefaultUid
             });
@@ -544,8 +561,8 @@ namespace Shittim_Server.Controllers.SDK
 
             return Results.Json(new
             {
-                errorCode = "0",
-                error_code = "0",
+                errorCode = 0,
+                error_code = 0,
                 errorText = "",
                 error_text = "",
                 errorDetail = "",
@@ -555,13 +572,17 @@ namespace Shittim_Server.Controllers.SDK
                 status_code = 200,
                 responseHandleCode = 0,
                 response_handle_code = 0,
-                code = "0",
+                code = 0,
                 message = "",
                 uid = DefaultUid,
                 web_ticket = webTicket,
                 webTicket,
                 ticket = webTicket,
                 web_token = session.WebToken,
+                access_token = session.WebToken,
+                accessToken = session.WebToken,
+                expires_in = 2592000,
+                expiresIn = 2592000,
                 local_session_user_id = session.Identity.LocalSessionUserId,
                 local_session_type = session.Identity.LocalSessionType,
                 linked_platform_user_id = session.Identity.LocalSessionUserId
@@ -951,10 +972,12 @@ namespace Shittim_Server.Controllers.SDK
 
         private static object BuildLoginLinkResponse(IasSession session)
         {
+            // IFGameAuth::LoginAccountLink lambda in gamescale.core.dll (0x180046182) parses errorCode and code via get<int>() (0x1800232c0).
+            // If they are strings, nlohmann throws type_error.302. errorCode and code MUST be numeric 0.
             return new
             {
-                errorCode = "0",
-                error_code = "0",
+                errorCode = 0,
+                error_code = 0,
                 errorText = "",
                 error_text = "",
                 errorDetail = "",
@@ -964,9 +987,13 @@ namespace Shittim_Server.Controllers.SDK
                 status_code = 200,
                 responseHandleCode = 0,
                 response_handle_code = 0,
-                code = "0",
+                code = 0,
                 message = "",
                 web_token = session.WebToken,
+                access_token = session.WebToken,
+                accessToken = session.WebToken,
+                expires_in = 2592000,
+                expiresIn = 2592000,
                 ticket = session.Ticket,
                 uid = DefaultUid,
                 local_session_user_id = session.Identity.LocalSessionUserId,

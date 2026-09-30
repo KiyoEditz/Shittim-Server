@@ -33,14 +33,18 @@ public class WorldRaidSyncService : BackgroundService
         {
             try
             {
-                await SyncOnce(url);
+                await SyncOnce(url, stoppingToken);
                 if (offline)
                 {
                     offline = false;
                     logger.LogInformation("World raid coordinator is reachable again");
                 }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
             {
                 // one line the first time, then quiet - a coordinator that is down for the night would otherwise fill the log at every poll
                 if (!offline)
@@ -55,9 +59,9 @@ public class WorldRaidSyncService : BackgroundService
         }
     }
 
-    private async Task SyncOnce(string url)
+    private async Task SyncOnce(string url, CancellationToken ct = default)
     {
-        var manifestJson = await http.GetStringAsync($"{url}/worldraid/manifest");
+        var manifestJson = await http.GetStringAsync($"{url}/worldraid/manifest", ct);
         var manifest = string.IsNullOrWhiteSpace(manifestJson) ? null : JsonSerializer.Deserialize<WorldRaidManifest>(manifestJson);
 
         if (manifest != null && !string.IsNullOrWhiteSpace(manifest.minServerVersion) &&
@@ -86,7 +90,7 @@ public class WorldRaidSyncService : BackgroundService
         foreach (var (groupId, damage) in WorldRaidService.PendingSnapshot())
         {
             var body = JsonSerializer.Serialize(new { serverId = WorldRaidService.ServerId, seasonId = manifest.seasonId, groupId, damage });
-            var answer = await http.PostAsync($"{url}/worldraid/contribute", new StringContent(body, Encoding.UTF8, "application/json"));
+            var answer = await http.PostAsync($"{url}/worldraid/contribute", new StringContent(body, Encoding.UTF8, "application/json"), ct);
             if (answer.StatusCode == System.Net.HttpStatusCode.Conflict)
             {
                 // the coordinator rejected this group outright (season rolled, or a boss it never declared) - retrying cannot succeed
@@ -95,7 +99,7 @@ public class WorldRaidSyncService : BackgroundService
             }
             answer.EnsureSuccessStatusCode();
             WorldRaidService.ConfirmFlushed(groupId, damage);
-            var acked = JsonSerializer.Deserialize<WorldRaidWorldState>(await answer.Content.ReadAsStringAsync());
+            var acked = JsonSerializer.Deserialize<WorldRaidWorldState>(await answer.Content.ReadAsStringAsync(ct));
             if (acked != null)
                 WorldRaidService.ApplyRemoteState(acked);
             flushed = true;
@@ -103,7 +107,7 @@ public class WorldRaidSyncService : BackgroundService
 
         if (!flushed)
         {
-            var state = JsonSerializer.Deserialize<WorldRaidWorldState>(await http.GetStringAsync($"{url}/worldraid/state"));
+            var state = JsonSerializer.Deserialize<WorldRaidWorldState>(await http.GetStringAsync($"{url}/worldraid/state", ct));
             if (state != null)
                 WorldRaidService.ApplyRemoteState(state);
         }
