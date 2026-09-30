@@ -3,7 +3,7 @@ id: installation
 title: Installation
 ---
 
-Grab Shittim Control Center from the [releases page](https://github.com/Neoexm/Shittim-Server/releases). There are two builds: a portable exe that runs from wherever you put it, and an installer. Both self-update from GitHub Releases, but only the installed build can apply an update in place - the portable one tells you to download the new exe.
+Grab Shittim Control Center from the [releases page](https://github.com/KiyoEditz/Shittim-Server/releases). There are two builds: a portable exe that runs from wherever you put it, and an installer. Both self-update from GitHub Releases, but only the installed build can apply an update in place - the portable one tells you to download the new exe.
 
 Run it as administrator. The certificate step and offline mode both need it.
 

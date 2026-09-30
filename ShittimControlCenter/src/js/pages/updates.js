@@ -18,7 +18,7 @@ export default {
 
     const versionCard = el('div.card', {},
       el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: 'Version' }),
-        el('span.sub', { text: 'Neoexm/Shittim-Server - main' }), el('div.spacer', {}), checkBtn),
+        el('span.sub', { text: 'KiyoEditz/Shittim-Server - main' }), el('div.spacer', {}), checkBtn),
       el('div.card-body', {}, headInfo, resultBody));
 
     const rebuildBtn = button('Rebuild server', { variant: 'ghost', iconName: 'bolt', onClick: doRebuild });
