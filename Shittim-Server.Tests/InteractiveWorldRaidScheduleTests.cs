@@ -285,6 +285,8 @@ public class InteractiveWorldRaidScheduleTests : IDisposable
     {
         var raid = Live854();
         raid.open = DateTime.UtcNow.AddDays(openDaysFromNow).ToString("yyyy-MM-dd HH:mm:ss");
+        raid.close = DateTime.UtcNow.AddDays(14).ToString("yyyy-MM-dd HH:mm:ss");
+        raid.extension = DateTime.UtcNow.AddDays(21).ToString("yyyy-MM-dd HH:mm:ss");
         var secondSpawn = DateTime.UtcNow.AddDays(secondSpawnDaysFromNow).ToString("yyyy-MM-dd HH:mm:ss");
         raid.bosses =
         [
