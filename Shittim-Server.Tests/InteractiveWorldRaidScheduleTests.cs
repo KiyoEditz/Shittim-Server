@@ -283,17 +283,20 @@ public class InteractiveWorldRaidScheduleTests : IDisposable
     // the phase pick runs against the wall clock, so the fixture dates move with it rather than sitting at fixed strings
     private static WorldRaidManifest Started854(double openDaysFromNow, double secondSpawnDaysFromNow)
     {
+        var open = DateTime.UtcNow.AddDays(openDaysFromNow);
+        var secondSpawn = DateTime.UtcNow.AddDays(secondSpawnDaysFromNow);
+        var close = open.AddDays(30);
+
         var raid = Live854();
-        raid.open = DateTime.UtcNow.AddDays(openDaysFromNow).ToString("yyyy-MM-dd HH:mm:ss");
-        raid.close = DateTime.UtcNow.AddDays(14).ToString("yyyy-MM-dd HH:mm:ss");
-        raid.extension = DateTime.UtcNow.AddDays(21).ToString("yyyy-MM-dd HH:mm:ss");
-        var secondSpawn = DateTime.UtcNow.AddDays(secondSpawnDaysFromNow).ToString("yyyy-MM-dd HH:mm:ss");
+        raid.open = open.ToString("yyyy-MM-dd HH:mm:ss");
+        raid.close = close.ToString("yyyy-MM-dd HH:mm:ss");
+        raid.extension = close.AddDays(7).ToString("yyyy-MM-dd HH:mm:ss");
         raid.bosses =
         [
             new WorldRaidManifestBoss { groupId = 8540000, spawnTime = raid.open, eliminateTime = raid.close },
             new WorldRaidManifestBoss { groupId = 8540100, spawnTime = raid.open, eliminateTime = raid.close },
-            new WorldRaidManifestBoss { groupId = 8540800, spawnTime = secondSpawn, eliminateTime = raid.close },
-            new WorldRaidManifestBoss { groupId = 8540900, spawnTime = secondSpawn, eliminateTime = raid.close },
+            new WorldRaidManifestBoss { groupId = 8540800, spawnTime = secondSpawn.ToString("yyyy-MM-dd HH:mm:ss"), eliminateTime = raid.close },
+            new WorldRaidManifestBoss { groupId = 8540900, spawnTime = secondSpawn.ToString("yyyy-MM-dd HH:mm:ss"), eliminateTime = raid.close },
         ];
         return raid;
     }
