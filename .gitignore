@@ -116,7 +116,9 @@ ida_pro_metadata/il2cpp.json
 ida_pro_metadata/il2cpp.h
 
 # Names the host it pushes to.
+# Dynamic download marker created by Control Center installer/updater
 docs/deploy.sh
+shittim-version.json
 
 # Project requirement: ALWAYS track Shittim-Server/config and every file inside it.
 # These negations MUST stay at the end of the file so they override the *.pem,
