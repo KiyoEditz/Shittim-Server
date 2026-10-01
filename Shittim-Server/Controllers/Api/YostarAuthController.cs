@@ -54,10 +54,21 @@ namespace Shittim_Server.Controllers.Api
                     try
                     {
                         var json = JObject.Parse(body);
-                        foreach (var prop in json.Properties())
+                        void ExtractProperties(JObject obj)
                         {
-                            dict[prop.Name] = prop.Value?.ToString() ?? "";
+                            foreach (var prop in obj.Properties())
+                            {
+                                if (prop.Value is JObject nestedObj)
+                                {
+                                    ExtractProperties(nestedObj);
+                                }
+                                else if (prop.Value != null)
+                                {
+                                    dict[prop.Name] = prop.Value.ToString();
+                                }
+                            }
                         }
+                        ExtractProperties(json);
                     }
                     catch
                     {
@@ -149,6 +160,10 @@ namespace Shittim_Server.Controllers.Api
                 ["Code"] = 0,
                 ["status"] = 0,
                 ["Status"] = 0,
+                ["result"] = 0,
+                ["Result"] = 0,
+                ["R_CODE"] = 0,
+                ["R_MSG"] = "success",
                 ["msg"] = "success",
                 ["Msg"] = "success",
                 ["data"] = new Dictionary<string, object>()
@@ -257,8 +272,9 @@ namespace Shittim_Server.Controllers.Api
         public async Task<IActionResult> QuickOrTokenLogin()
         {
             var p = await ParseRequestParametersAsync();
-            var token = p.GetValueOrDefault("token");
-            var uidStr = p.GetValueOrDefault("uid") ?? p.GetValueOrDefault("userId");
+            var token = p.GetValueOrDefault("token") ?? p.GetValueOrDefault("auth") ?? p.GetValueOrDefault("ticket");
+            var uidStr = p.GetValueOrDefault("uid") ?? p.GetValueOrDefault("userId") ?? p.GetValueOrDefault("id");
+            var email = p.GetValueOrDefault("email") ?? p.GetValueOrDefault("account") ?? p.GetValueOrDefault("login_name");
 
             await using var db = await _dbFactory.CreateDbContextAsync();
 
@@ -272,6 +288,11 @@ namespace Shittim_Server.Controllers.Api
             if (user == null && !string.IsNullOrEmpty(token))
             {
                 user = await db.UserAccounts.FirstOrDefaultAsync(u => u.NpToken == token);
+            }
+
+            if (user == null && !string.IsNullOrEmpty(email))
+            {
+                user = await db.UserAccounts.FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == email.Trim().ToLowerInvariant());
             }
 
             // Check if an account is selected in Control Center
@@ -335,8 +356,9 @@ namespace Shittim_Server.Controllers.Api
         public async Task<IActionResult> UserDetail()
         {
             var p = await ParseRequestParametersAsync();
-            var token = p.GetValueOrDefault("token");
-            var uidStr = p.GetValueOrDefault("uid") ?? p.GetValueOrDefault("userId");
+            var token = p.GetValueOrDefault("token") ?? p.GetValueOrDefault("auth") ?? p.GetValueOrDefault("ticket");
+            var uidStr = p.GetValueOrDefault("uid") ?? p.GetValueOrDefault("userId") ?? p.GetValueOrDefault("id");
+            var email = p.GetValueOrDefault("email") ?? p.GetValueOrDefault("account") ?? p.GetValueOrDefault("login_name");
 
             await using var db = await _dbFactory.CreateDbContextAsync();
             UserAccount? user = null;
@@ -351,6 +373,11 @@ namespace Shittim_Server.Controllers.Api
                 user = await db.UserAccounts.FirstOrDefaultAsync(u => u.NpToken == token);
             }
 
+            if (user == null && !string.IsNullOrEmpty(email))
+            {
+                user = await db.UserAccounts.FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == email.Trim().ToLowerInvariant());
+            }
+
             var selectedId = Config.Instance.ServerConfiguration.SelectedAccountId;
             if (user == null && selectedId > 0)
             {
@@ -359,7 +386,8 @@ namespace Shittim_Server.Controllers.Api
 
             user ??= await db.UserAccounts.FirstOrDefaultAsync();
 
-            var finalUid = user?.NpSN.ToString() ?? "1";
+            var uidLong = user?.NpSN ?? 1L;
+            var finalUid = uidLong.ToString();
             var finalEmail = user?.Email ?? "sensei@shittim.local";
             var account = user != null ? await db.Accounts.FirstOrDefaultAsync(a => a.ServerId == user.Uid || a.PublisherAccountId == user.NpSN) : null;
             var nick = account?.Nickname ?? (finalEmail.Contains('@') ? finalEmail.Split('@')[0] : finalEmail);
@@ -367,7 +395,7 @@ namespace Shittim_Server.Controllers.Api
             var userToken = user?.NpToken ?? $"yostar-{Guid.NewGuid():N}";
             var nowSec = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-            var userInfo = BuildUserInfoDict(finalUid, userToken, nowSec);
+            var userInfo = BuildUserInfoDict(finalUid, uidLong, userToken, nowSec);
             var yostar = BuildYostarDict(finalUid, nick, nowSec);
 
             var detailData = new Dictionary<string, object>
@@ -403,6 +431,10 @@ namespace Shittim_Server.Controllers.Api
                 ["Msg"] = "success",
                 ["status"] = 0,
                 ["Status"] = 0,
+                ["result"] = 0,
+                ["Result"] = 0,
+                ["R_CODE"] = 0,
+                ["R_MSG"] = "success",
                 ["data"] = detailData,
                 ["Data"] = detailData
             };
@@ -425,6 +457,10 @@ namespace Shittim_Server.Controllers.Api
                 ["Msg"] = "success",
                 ["status"] = 0,
                 ["Status"] = 0,
+                ["result"] = 0,
+                ["Result"] = 0,
+                ["R_CODE"] = 0,
+                ["R_MSG"] = "success",
                 ["data"] = new Dictionary<string, object>
                 {
                     ["check"] = 0,
@@ -448,6 +484,10 @@ namespace Shittim_Server.Controllers.Api
                 ["Msg"] = "success",
                 ["status"] = 0,
                 ["Status"] = 0,
+                ["result"] = 0,
+                ["Result"] = 0,
+                ["R_CODE"] = 0,
+                ["R_MSG"] = "success",
                 ["data"] = new object[0]
             };
             return Content(Newtonsoft.Json.JsonConvert.SerializeObject(root), "application/json");
@@ -479,6 +519,46 @@ namespace Shittim_Server.Controllers.Api
         [HttpPost("user/check-text")]
         [HttpGet("heartbeat/pulse")]
         [HttpPost("heartbeat/pulse")]
+        [HttpGet("yostar/get-account-center-url")]
+        [HttpPost("yostar/get-account-center-url")]
+        [HttpGet("change-email/send-code")]
+        [HttpPost("change-email/send-code")]
+        [HttpGet("change-email/validate")]
+        [HttpPost("change-email/validate")]
+        [HttpGet("api/open/ip")]
+        [HttpPost("api/open/ip")]
+        [HttpGet("api/open/red_point")]
+        [HttpPost("api/open/red_point")]
+        [HttpGet("health-game/duration")]
+        [HttpPost("health-game/duration")]
+        [HttpGet("health-game/identity-auth")]
+        [HttpPost("health-game/identity-auth")]
+        [HttpGet("user/identity-auth/send")]
+        [HttpPost("user/identity-auth/send")]
+        [HttpGet("user/identity-auth/verify")]
+        [HttpPost("user/identity-auth/verify")]
+        [HttpGet("order/detail")]
+        [HttpPost("order/detail")]
+        [HttpGet("order/products")]
+        [HttpPost("order/products")]
+        [HttpGet("order/create")]
+        [HttpPost("order/create")]
+        [HttpGet("order/confirm")]
+        [HttpPost("order/confirm")]
+        [HttpGet("order/gmo/creditcard/list")]
+        [HttpPost("order/gmo/creditcard/list")]
+        [HttpGet("order/gmo/creditcard/delete")]
+        [HttpPost("order/gmo/creditcard/delete")]
+        [HttpGet("order/gmo/creditcard/add")]
+        [HttpPost("order/gmo/creditcard/add")]
+        [HttpGet("user/send-sms")]
+        [HttpPost("user/send-sms")]
+        [HttpGet("user/send-email")]
+        [HttpPost("user/send-email")]
+        [HttpGet("user/survey")]
+        [HttpPost("user/survey")]
+        [HttpGet("user/gen-transcode")]
+        [HttpPost("user/gen-transcode")]
         [HttpGet("api/user/remove-device")]
         [HttpPost("api/user/remove-device")]
         [HttpGet("api/user/set")]
@@ -505,6 +585,42 @@ namespace Shittim_Server.Controllers.Api
         [HttpPost("api/user/check-text")]
         [HttpGet("api/heartbeat/pulse")]
         [HttpPost("api/heartbeat/pulse")]
+        [HttpGet("api/yostar/get-account-center-url")]
+        [HttpPost("api/yostar/get-account-center-url")]
+        [HttpGet("api/change-email/send-code")]
+        [HttpPost("api/change-email/send-code")]
+        [HttpGet("api/change-email/validate")]
+        [HttpPost("api/change-email/validate")]
+        [HttpGet("api/health-game/duration")]
+        [HttpPost("api/health-game/duration")]
+        [HttpGet("api/health-game/identity-auth")]
+        [HttpPost("api/health-game/identity-auth")]
+        [HttpGet("api/user/identity-auth/send")]
+        [HttpPost("api/user/identity-auth/send")]
+        [HttpGet("api/user/identity-auth/verify")]
+        [HttpPost("api/user/identity-auth/verify")]
+        [HttpGet("api/order/detail")]
+        [HttpPost("api/order/detail")]
+        [HttpGet("api/order/products")]
+        [HttpPost("api/order/products")]
+        [HttpGet("api/order/create")]
+        [HttpPost("api/order/create")]
+        [HttpGet("api/order/confirm")]
+        [HttpPost("api/order/confirm")]
+        [HttpGet("api/order/gmo/creditcard/list")]
+        [HttpPost("api/order/gmo/creditcard/list")]
+        [HttpGet("api/order/gmo/creditcard/delete")]
+        [HttpPost("api/order/gmo/creditcard/delete")]
+        [HttpGet("api/order/gmo/creditcard/add")]
+        [HttpPost("api/order/gmo/creditcard/add")]
+        [HttpGet("api/user/send-sms")]
+        [HttpPost("api/user/send-sms")]
+        [HttpGet("api/user/send-email")]
+        [HttpPost("api/user/send-email")]
+        [HttpGet("api/user/survey")]
+        [HttpPost("api/user/survey")]
+        [HttpGet("api/user/gen-transcode")]
+        [HttpPost("api/user/gen-transcode")]
         public IActionResult GenericYostarSuccess()
         {
             var root = new Dictionary<string, object>
@@ -515,6 +631,10 @@ namespace Shittim_Server.Controllers.Api
                 ["Msg"] = "success",
                 ["status"] = 0,
                 ["Status"] = 0,
+                ["result"] = 0,
+                ["Result"] = 0,
+                ["R_CODE"] = 0,
+                ["R_MSG"] = "success",
                 ["data"] = new Dictionary<string, object>()
             };
             return Content(Newtonsoft.Json.JsonConvert.SerializeObject(root), "application/json");
@@ -532,6 +652,10 @@ namespace Shittim_Server.Controllers.Api
                 ["Msg"] = "success",
                 ["status"] = 0,
                 ["Status"] = 0,
+                ["result"] = 0,
+                ["Result"] = 0,
+                ["R_CODE"] = 0,
+                ["R_MSG"] = "success",
                 ["data"] = new Dictionary<string, object>
                 {
                     ["token"] = Guid.NewGuid().ToString("N")
@@ -542,44 +666,25 @@ namespace Shittim_Server.Controllers.Api
 
         private ContentResult CreateYostarLoginResponse(UserAccount user, AccountDBServer? account, string fallbackEmail)
         {
-            var uidStr = user.NpSN.ToString();
+            var uidLong = user.NpSN;
+            var uidStr = uidLong.ToString();
             var email = user.Email ?? fallbackEmail;
             var nick = account?.Nickname ?? (email.Contains('@') ? email.Split('@')[0] : email);
             if (string.IsNullOrWhiteSpace(nick)) nick = "Sensei";
             var token = user.NpToken ?? $"yostar-{Guid.NewGuid():N}";
             var nowSec = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-            var userInfo = BuildUserInfoDict(uidStr, token, nowSec);
+            var userInfo = BuildUserInfoDict(uidStr, uidLong, token, nowSec);
             var yostar = BuildYostarDict(uidStr, nick, nowSec);
+            var data = BuildLoginDataDict(uidStr, uidLong, token, email, userInfo, yostar);
 
-            var data = new Dictionary<string, object>
+            var rData = new Dictionary<string, object>
             {
-                ["uid"] = uidStr,
-                ["UID"] = uidStr,
+                ["auth"] = token,
+                ["ticket"] = token,
                 ["token"] = token,
-                ["Token"] = token,
-                ["login_name"] = email,
-                ["LoginName"] = email,
-                ["platform"] = "YOSTAR",
-                ["Platform"] = "YOSTAR",
-                ["is_new"] = 0,
-                ["IsNew"] = 0,
-                ["isNew"] = 0,
-                ["age_verify_method"] = 0,
-                ["AgeVerifyMethod"] = 0,
-                ["uid2"] = uidStr,
-                ["UID2"] = uidStr,
-                ["default"] = 0,
-                ["DEFAULT"] = 0,
-                ["icon_size"] = 0,
-                ["ICON_SIZE"] = 0,
-                ["sort"] = 0,
-                ["SORT"] = 0,
-                ["user_info"] = userInfo,
-                ["UserInfo"] = userInfo,
-                ["userInfo"] = userInfo,
-                ["yostar"] = yostar,
-                ["Yostar"] = yostar
+                ["uid"] = uidStr,
+                ["code"] = 0
             };
 
             var root = new Dictionary<string, object>
@@ -609,18 +714,58 @@ namespace Shittim_Server.Controllers.Api
                 ["login_token"] = token,
                 ["token"] = token,
                 ["Token"] = token,
+                ["auth"] = token,
+                ["ticket"] = token,
                 ["LOGIN_NAME"] = email,
                 ["login_name"] = email,
                 ["YOSTAR_NAME"] = email,
                 ["data"] = data,
-                ["Data"] = data
+                ["Data"] = data,
+                ["R_DATA"] = rData
             };
 
             var jsonStr = Newtonsoft.Json.JsonConvert.SerializeObject(root);
             return Content(jsonStr, "application/json");
         }
 
-        private static Dictionary<string, object> BuildUserInfoDict(string uidStr, string token, long nowSec)
+        private static Dictionary<string, object> BuildLoginDataDict(
+            string uidStr, long uidLong, string token, string email,
+            Dictionary<string, object> userInfo, Dictionary<string, object> yostar)
+        {
+            return new Dictionary<string, object>
+            {
+                ["uid"] = uidStr,
+                ["UID"] = uidStr,
+                ["token"] = token,
+                ["Token"] = token,
+                ["auth"] = token,
+                ["ticket"] = token,
+                ["login_name"] = email,
+                ["LoginName"] = email,
+                ["platform"] = "YOSTAR",
+                ["Platform"] = "YOSTAR",
+                ["is_new"] = 0,
+                ["IsNew"] = 0,
+                ["isNew"] = 0,
+                ["age_verify_method"] = 0,
+                ["AgeVerifyMethod"] = 0,
+                ["uid2"] = uidLong,
+                ["UID2"] = uidLong,
+                ["default"] = "0",
+                ["DEFAULT"] = "0",
+                ["icon_size"] = "0",
+                ["ICON_SIZE"] = "0",
+                ["sort"] = new string[0],
+                ["SORT"] = new string[0],
+                ["user_info"] = userInfo,
+                ["UserInfo"] = userInfo,
+                ["userInfo"] = userInfo,
+                ["yostar"] = yostar,
+                ["Yostar"] = yostar
+            };
+        }
+
+        private static Dictionary<string, object> BuildUserInfoDict(string uidStr, long uidLong, string token, long nowSec)
         {
             return new Dictionary<string, object>
             {
@@ -628,8 +773,8 @@ namespace Shittim_Server.Controllers.Api
                 ["ID"] = uidStr,
                 ["uid"] = uidStr,
                 ["UID"] = uidStr,
-                ["uid2"] = uidStr,
-                ["UID2"] = uidStr,
+                ["uid2"] = uidLong,
+                ["UID2"] = uidLong,
                 ["pid"] = uidStr,
                 ["PID"] = uidStr,
                 ["token"] = token,
@@ -640,8 +785,8 @@ namespace Shittim_Server.Controllers.Api
                 ["RegChannel"] = "YOSTAR",
                 ["trans_code"] = "",
                 ["TransCode"] = "",
-                ["state"] = 1,
-                ["State"] = 1,
+                ["state"] = 1L,
+                ["State"] = 1L,
                 ["device_id"] = "shittim-device",
                 ["DeviceID"] = "shittim-device",
                 ["created_at"] = nowSec,
@@ -663,10 +808,10 @@ namespace Shittim_Server.Controllers.Api
                 ["Name"] = nick,
                 ["picture"] = "",
                 ["Picture"] = "",
-                ["state"] = 1,
-                ["State"] = 1,
-                ["agree_ad"] = 1,
-                ["AgreeAd"] = 1,
+                ["state"] = 1L,
+                ["State"] = 1L,
+                ["agree_ad"] = 1L,
+                ["AgreeAd"] = 1L,
                 ["created_at"] = nowSec,
                 ["CreatedAt"] = nowSec
             };

@@ -4,6 +4,9 @@ namespace Shittim_Server.Controllers.SDK
 {
     [ApiController]
     [Route("/com.nexon.bluearchive/server_config")]
+    [Route("/prod/ProhibitedWord")]
+    [Route("prod/ProhibitedWord")]
+    [Route("/api/prod/ProhibitedWord")]
     public class ProhibitedWordController : ControllerBase
     {
         [HttpGet("blacklist.csv")]
