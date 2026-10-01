@@ -93,7 +93,16 @@ REWRITE_HOST_LIST = [
     # GTable (all env variants)
     'gtable.inface.nexon.com',
     'test-gtable.inface.nexon.com',
-    'dev-gtable.inface.nexon.com'
+    'dev-gtable.inface.nexon.com',
+
+    # Blue Archive JP (Yostar) hosts
+    'prod-game.bluearchiveyostar.com',
+    'yostar-serverinfo.bluearchiveyostar.com',
+    'jp-sdk-api.yostarplat.com',
+    'account.yostar.co.jp',
+    'account.yo-star.com',
+    'passport.yostar.co.jp',
+    'api-launcher-jp.yo-star.com'
 ]
 
 KILL_HOST_LIST = [
@@ -222,6 +231,21 @@ def request(flow: http.HTTPFlow) -> None:
         flow.request.scheme = 'http'
         flow.request.host = SERVER_HOST
         flow.request.port = GATEWAY_PORT
+        return
+
+    # Redirect any connection on port 5000 (game API) to our local server.
+    if flow.request.port == SERVER_PORT or (flow.request.pretty_host and ':5000' in flow.request.pretty_host):
+        print(f"[Game Server Rewrite] {flow.request.method} {host}:{flow.request.port}{flow.request.path} -> {SERVER_HOST}:{SERVER_PORT}")
+        rlog(f"  -> SERVER-REWRITE {host} -> {SERVER_HOST}:{SERVER_PORT}")
+        flow.request.scheme = 'http'
+        flow.request.host = SERVER_HOST
+        flow.request.port = SERVER_PORT
+        return
+
+    # Stub Yostar notice and log collector endpoints
+    if host in ('prod-noticeindex.bluearchiveyostar.com', 'prod-logcollector.bluearchiveyostar.com'):
+        rlog(f"  -> STUB empty-json {host}")
+        flow.response = http.Response.make(200, b"{}", {"Content-Type": "application/json"})
         return
 
     if host_endswith(host, REWRITE_HOST_LIST):

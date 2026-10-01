@@ -83,6 +83,7 @@ public class ManagementController : ControllerBase
         var itemCount = await db.Items.CountAsync(x => x.AccountServerId == serverId);
         var characterCount = await db.Characters.CountAsync(x => x.AccountServerId == serverId);
         var mailCount = await db.Mails.CountAsync(x => x.AccountServerId == serverId);
+        var user = await db.UserAccounts.FirstOrDefaultAsync(u => u.Uid == serverId || u.NpSN == a.PublisherAccountId);
 
         return Ok(new
         {
@@ -92,6 +93,7 @@ public class ManagementController : ControllerBase
             a.Level,
             a.Exp,
             a.Comment,
+            Email = user?.Email,
             State = a.State.ToString(),
             a.VIPLevel,
             a.PublisherAccountId,
@@ -109,6 +111,7 @@ public class ManagementController : ControllerBase
     {
         public string Nickname { get; set; } = "Sensei";
         public string? CallName { get; set; }
+        public string? Email { get; set; }
     }
 
     [HttpPost("account/create")]
@@ -123,7 +126,8 @@ public class ManagementController : ControllerBase
             while (await db.Accounts.AnyAsync(x => x.PublisherAccountId == publisherId))
                 publisherId++;
 
-            db.UserAccounts.Add(new UserAccount { Uid = -1, NpSN = publisherId, NpToken = "" });
+            var email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim().ToLowerInvariant();
+            db.UserAccounts.Add(new UserAccount { Uid = -1, NpSN = publisherId, NpToken = "", Email = email });
 
             var account = new AccountDBServer(publisherId)
             {
@@ -141,7 +145,7 @@ public class ManagementController : ControllerBase
             await AccountInitializationService.InitializeCompleteAccount(db, account);
             await db.SaveChangesAsync();
 
-            return Ok(new { success = true, serverId = account.ServerId, nickname = account.Nickname });
+            return Ok(new { success = true, serverId = account.ServerId, nickname = account.Nickname, email = user.Email });
         }
         catch (Exception ex)
         {
@@ -155,6 +159,7 @@ public class ManagementController : ControllerBase
         public string? Nickname { get; set; }
         public string? CallName { get; set; }
         public string? Comment { get; set; }
+        public string? Email { get; set; }
         public int? Level { get; set; }
         public long? Exp { get; set; }
         public int? VIPLevel { get; set; }
@@ -175,6 +180,15 @@ public class ManagementController : ControllerBase
             if (request.Level.HasValue) a.Level = request.Level.Value;
             if (request.Exp.HasValue) a.Exp = request.Exp.Value;
             if (request.VIPLevel.HasValue) a.VIPLevel = request.VIPLevel.Value;
+
+            if (request.Email != null)
+            {
+                var user = await db.UserAccounts.FirstOrDefaultAsync(u => u.Uid == a.ServerId || u.NpSN == a.PublisherAccountId);
+                if (user != null)
+                {
+                    user.Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim().ToLowerInvariant();
+                }
+            }
 
             await db.SaveChangesAsync();
             return Ok(new { success = true });
