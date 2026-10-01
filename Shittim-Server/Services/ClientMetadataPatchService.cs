@@ -338,8 +338,17 @@ namespace Shittim_Server.Services
             if (!string.IsNullOrWhiteSpace(configuredPath))
                 return ResolvePath(configuredPath);
 
+            var metadataRel = Path.Combine("BlueArchive_Data", "il2cpp_data", "Metadata", "global-metadata.dat");
+
+            if (Config.Instance.ServerConfiguration.EnableJpClient)
+            {
+                var jpPath = YostarGameLocator.FindGameFile(metadataRel);
+                if (!string.IsNullOrWhiteSpace(jpPath))
+                    return jpPath;
+            }
+
             // Any Steam library can hold the install.
-            return SteamGameLocator.FindGameFile(Path.Combine("BlueArchive_Data", "il2cpp_data", "Metadata", "global-metadata.dat"));
+            return SteamGameLocator.FindGameFile(metadataRel);
         }
 
         private static string GetGatewayPublicKey()
