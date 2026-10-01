@@ -133,7 +133,9 @@ namespace Shittim_Server.Controllers.Api
             });
         }
 
+        [HttpGet("yostar/send-code")]
         [HttpPost("yostar/send-code")]
+        [HttpGet("api/yostar/send-code")]
         [HttpPost("api/yostar/send-code")]
         public async Task<IActionResult> SendCode()
         {
@@ -141,15 +143,22 @@ namespace Shittim_Server.Controllers.Api
             var email = p.GetValueOrDefault("email") ?? p.GetValueOrDefault("account") ?? "";
             _logger.LogInformation("[Yostar SDK] Verification code requested for fake email: {Email}", email);
 
-            return Ok(new
+            var root = new Dictionary<string, object>
             {
-                Code = 0,
-                Msg = "success",
-                Data = new { }
-            });
+                ["code"] = 0,
+                ["Code"] = 0,
+                ["status"] = 0,
+                ["Status"] = 0,
+                ["msg"] = "success",
+                ["Msg"] = "success",
+                ["data"] = new Dictionary<string, object>()
+            };
+            return Content(Newtonsoft.Json.JsonConvert.SerializeObject(root), "application/json");
         }
 
+        [HttpGet("yostar/get-auth")]
         [HttpPost("yostar/get-auth")]
+        [HttpGet("api/yostar/get-auth")]
         [HttpPost("api/yostar/get-auth")]
         public async Task<IActionResult> GetAuth()
         {
@@ -230,30 +239,20 @@ namespace Shittim_Server.Controllers.Api
                 _logger.LogInformation("[Yostar SDK] Authenticated existing account #{ServerId} for email: {Email} (NpSN: {PublisherId})", account.ServerId, email, user.NpSN);
             }
 
-            var uidStr = user.NpSN.ToString();
-            return Ok(new
-            {
-                Code = 0,
-                Msg = "success",
-                LOGIN_PLATFORM = "YOSTAR",
-                LOGIN_UID = uidStr,
-                LOGIN_TOKEN = user.NpToken,
-                LOGIN_NAME = user.Email ?? email,
-                Data = new
-                {
-                    uid = uidStr,
-                    token = user.NpToken,
-                    login_name = user.Email ?? email,
-                    platform = "YOSTAR"
-                }
-            });
+            return CreateYostarLoginResponse(user, account, email);
         }
 
+        [HttpGet("yostar/token-login")]
         [HttpPost("yostar/token-login")]
+        [HttpGet("api/yostar/token-login")]
         [HttpPost("api/yostar/token-login")]
+        [HttpGet("user/quick-login")]
         [HttpPost("user/quick-login")]
+        [HttpGet("api/user/quick-login")]
         [HttpPost("api/user/quick-login")]
+        [HttpGet("user/login")]
         [HttpPost("user/login")]
+        [HttpGet("api/user/login")]
         [HttpPost("api/user/login")]
         public async Task<IActionResult> QuickOrTokenLogin()
         {
@@ -317,45 +316,361 @@ namespace Shittim_Server.Controllers.Api
                 await db.SaveChangesAsync();
             }
 
-            var finalUid = user.NpSN.ToString();
-            var finalEmail = user.Email ?? "sensei@shittim.local";
             if (string.IsNullOrEmpty(user.NpToken))
             {
                 user.NpToken = $"yostar-{Guid.NewGuid():N}";
                 await db.SaveChangesAsync();
             }
 
-            return Ok(new
+            var finalEmail = user.Email ?? "sensei@shittim.local";
+            var userAccount = await db.Accounts.FirstOrDefaultAsync(a => a.ServerId == user.Uid || a.PublisherAccountId == user.NpSN);
+
+            return CreateYostarLoginResponse(user, userAccount, finalEmail);
+        }
+
+        [HttpGet("user/detail")]
+        [HttpPost("user/detail")]
+        [HttpGet("api/user/detail")]
+        [HttpPost("api/user/detail")]
+        public async Task<IActionResult> UserDetail()
+        {
+            var p = await ParseRequestParametersAsync();
+            var token = p.GetValueOrDefault("token");
+            var uidStr = p.GetValueOrDefault("uid") ?? p.GetValueOrDefault("userId");
+
+            await using var db = await _dbFactory.CreateDbContextAsync();
+            UserAccount? user = null;
+
+            if (!string.IsNullOrEmpty(uidStr) && long.TryParse(uidStr, out var parsedUid))
             {
-                Code = 0,
-                Msg = "success",
-                LOGIN_PLATFORM = "YOSTAR",
-                LOGIN_UID = finalUid,
-                LOGIN_TOKEN = user.NpToken,
-                LOGIN_NAME = finalEmail,
-                Data = new
+                user = await db.UserAccounts.FirstOrDefaultAsync(u => u.NpSN == parsedUid || u.Uid == parsedUid);
+            }
+
+            if (user == null && !string.IsNullOrEmpty(token))
+            {
+                user = await db.UserAccounts.FirstOrDefaultAsync(u => u.NpToken == token);
+            }
+
+            var selectedId = Config.Instance.ServerConfiguration.SelectedAccountId;
+            if (user == null && selectedId > 0)
+            {
+                user = await db.UserAccounts.FirstOrDefaultAsync(u => u.Uid == selectedId);
+            }
+
+            user ??= await db.UserAccounts.FirstOrDefaultAsync();
+
+            var finalUid = user?.NpSN.ToString() ?? "1";
+            var finalEmail = user?.Email ?? "sensei@shittim.local";
+            var account = user != null ? await db.Accounts.FirstOrDefaultAsync(a => a.ServerId == user.Uid || a.PublisherAccountId == user.NpSN) : null;
+            var nick = account?.Nickname ?? (finalEmail.Contains('@') ? finalEmail.Split('@')[0] : finalEmail);
+            if (string.IsNullOrWhiteSpace(nick)) nick = "Sensei";
+            var userToken = user?.NpToken ?? $"yostar-{Guid.NewGuid():N}";
+            var nowSec = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            var userInfo = BuildUserInfoDict(finalUid, userToken, nowSec);
+            var yostar = BuildYostarDict(finalUid, nick, nowSec);
+
+            var detailData = new Dictionary<string, object>
+            {
+                ["age_verify_method"] = 0,
+                ["AgeVerifyMethod"] = 0,
+                ["server_now_at"] = nowSec,
+                ["ServerNowAt"] = nowSec,
+                ["destroy"] = null,
+                ["Destroy"] = null,
+                ["yostar_destroy"] = null,
+                ["YostarDestroy"] = null,
+                ["is_test_account"] = 0,
+                ["IsTestAccount"] = 0,
+                ["keys"] = new object[0],
+                ["Keys"] = new object[0],
+                ["kmc_info"] = null,
+                ["KmcInfo"] = null,
+                ["kmc_status"] = 0,
+                ["KmcStatus"] = 0,
+                ["user_info"] = userInfo,
+                ["UserInfo"] = userInfo,
+                ["userInfo"] = userInfo,
+                ["yostar"] = yostar,
+                ["Yostar"] = yostar
+            };
+
+            var root = new Dictionary<string, object>
+            {
+                ["code"] = 0,
+                ["Code"] = 0,
+                ["msg"] = "success",
+                ["Msg"] = "success",
+                ["status"] = 0,
+                ["Status"] = 0,
+                ["data"] = detailData,
+                ["Data"] = detailData
+            };
+
+            var jsonStr = Newtonsoft.Json.JsonConvert.SerializeObject(root);
+            return Content(jsonStr, "application/json");
+        }
+
+        [HttpGet("user/check-captcha")]
+        [HttpPost("user/check-captcha")]
+        [HttpGet("api/user/check-captcha")]
+        [HttpPost("api/user/check-captcha")]
+        public IActionResult CheckCaptcha()
+        {
+            var root = new Dictionary<string, object>
+            {
+                ["code"] = 0,
+                ["Code"] = 0,
+                ["msg"] = "success",
+                ["Msg"] = "success",
+                ["status"] = 0,
+                ["Status"] = 0,
+                ["data"] = new Dictionary<string, object>
                 {
-                    uid = finalUid,
-                    token = user.NpToken,
-                    login_name = finalEmail,
-                    platform = "YOSTAR"
+                    ["check"] = 0,
+                    ["Check"] = 0
                 }
-            });
+            };
+            return Content(Newtonsoft.Json.JsonConvert.SerializeObject(root), "application/json");
+        }
+
+        [HttpGet("user/device-list")]
+        [HttpPost("user/device-list")]
+        [HttpGet("api/user/device-list")]
+        [HttpPost("api/user/device-list")]
+        public IActionResult DeviceList()
+        {
+            var root = new Dictionary<string, object>
+            {
+                ["code"] = 0,
+                ["Code"] = 0,
+                ["msg"] = "success",
+                ["Msg"] = "success",
+                ["status"] = 0,
+                ["Status"] = 0,
+                ["data"] = new object[0]
+            };
+            return Content(Newtonsoft.Json.JsonConvert.SerializeObject(root), "application/json");
+        }
+
+        [HttpGet("user/remove-device")]
+        [HttpPost("user/remove-device")]
+        [HttpGet("user/set")]
+        [HttpPost("user/set")]
+        [HttpGet("user/set-info")]
+        [HttpPost("user/set-info")]
+        [HttpGet("user/kmc-url")]
+        [HttpPost("user/kmc-url")]
+        [HttpGet("user/share/upload")]
+        [HttpPost("user/share/upload")]
+        [HttpGet("user/token-migrate")]
+        [HttpPost("user/token-migrate")]
+        [HttpGet("user/unlink")]
+        [HttpPost("user/unlink")]
+        [HttpGet("user/link")]
+        [HttpPost("user/link")]
+        [HttpGet("user/relink")]
+        [HttpPost("user/relink")]
+        [HttpGet("user/destroy")]
+        [HttpPost("user/destroy")]
+        [HttpGet("user/cancel-destroy")]
+        [HttpPost("user/cancel-destroy")]
+        [HttpGet("user/check-text")]
+        [HttpPost("user/check-text")]
+        [HttpGet("heartbeat/pulse")]
+        [HttpPost("heartbeat/pulse")]
+        [HttpGet("api/user/remove-device")]
+        [HttpPost("api/user/remove-device")]
+        [HttpGet("api/user/set")]
+        [HttpPost("api/user/set")]
+        [HttpGet("api/user/set-info")]
+        [HttpPost("api/user/set-info")]
+        [HttpGet("api/user/kmc-url")]
+        [HttpPost("api/user/kmc-url")]
+        [HttpGet("api/user/share/upload")]
+        [HttpPost("api/user/share/upload")]
+        [HttpGet("api/user/token-migrate")]
+        [HttpPost("api/user/token-migrate")]
+        [HttpGet("api/user/unlink")]
+        [HttpPost("api/user/unlink")]
+        [HttpGet("api/user/link")]
+        [HttpPost("api/user/link")]
+        [HttpGet("api/user/relink")]
+        [HttpPost("api/user/relink")]
+        [HttpGet("api/user/destroy")]
+        [HttpPost("api/user/destroy")]
+        [HttpGet("api/user/cancel-destroy")]
+        [HttpPost("api/user/cancel-destroy")]
+        [HttpGet("api/user/check-text")]
+        [HttpPost("api/user/check-text")]
+        [HttpGet("api/heartbeat/pulse")]
+        [HttpPost("api/heartbeat/pulse")]
+        public IActionResult GenericYostarSuccess()
+        {
+            var root = new Dictionary<string, object>
+            {
+                ["code"] = 0,
+                ["Code"] = 0,
+                ["msg"] = "success",
+                ["Msg"] = "success",
+                ["status"] = 0,
+                ["Status"] = 0,
+                ["data"] = new Dictionary<string, object>()
+            };
+            return Content(Newtonsoft.Json.JsonConvert.SerializeObject(root), "application/json");
         }
 
         [HttpPost("yostar/gen-token")]
         [HttpPost("api/yostar/gen-token")]
         public IActionResult GenToken()
         {
-            return Ok(new
+            var root = new Dictionary<string, object>
             {
-                Code = 0,
-                Msg = "success",
-                Data = new
+                ["code"] = 0,
+                ["Code"] = 0,
+                ["msg"] = "success",
+                ["Msg"] = "success",
+                ["status"] = 0,
+                ["Status"] = 0,
+                ["data"] = new Dictionary<string, object>
                 {
-                    token = Guid.NewGuid().ToString("N")
+                    ["token"] = Guid.NewGuid().ToString("N")
                 }
-            });
+            };
+            return Content(Newtonsoft.Json.JsonConvert.SerializeObject(root), "application/json");
+        }
+
+        private ContentResult CreateYostarLoginResponse(UserAccount user, AccountDBServer? account, string fallbackEmail)
+        {
+            var uidStr = user.NpSN.ToString();
+            var email = user.Email ?? fallbackEmail;
+            var nick = account?.Nickname ?? (email.Contains('@') ? email.Split('@')[0] : email);
+            if (string.IsNullOrWhiteSpace(nick)) nick = "Sensei";
+            var token = user.NpToken ?? $"yostar-{Guid.NewGuid():N}";
+            var nowSec = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            var userInfo = BuildUserInfoDict(uidStr, token, nowSec);
+            var yostar = BuildYostarDict(uidStr, nick, nowSec);
+
+            var data = new Dictionary<string, object>
+            {
+                ["uid"] = uidStr,
+                ["UID"] = uidStr,
+                ["token"] = token,
+                ["Token"] = token,
+                ["login_name"] = email,
+                ["LoginName"] = email,
+                ["platform"] = "YOSTAR",
+                ["Platform"] = "YOSTAR",
+                ["is_new"] = 0,
+                ["IsNew"] = 0,
+                ["isNew"] = 0,
+                ["age_verify_method"] = 0,
+                ["AgeVerifyMethod"] = 0,
+                ["uid2"] = uidStr,
+                ["UID2"] = uidStr,
+                ["default"] = 0,
+                ["DEFAULT"] = 0,
+                ["icon_size"] = 0,
+                ["ICON_SIZE"] = 0,
+                ["sort"] = 0,
+                ["SORT"] = 0,
+                ["user_info"] = userInfo,
+                ["UserInfo"] = userInfo,
+                ["userInfo"] = userInfo,
+                ["yostar"] = yostar,
+                ["Yostar"] = yostar
+            };
+
+            var root = new Dictionary<string, object>
+            {
+                ["code"] = 0,
+                ["Code"] = 0,
+                ["msg"] = "success",
+                ["Msg"] = "success",
+                ["status"] = 0,
+                ["Status"] = 0,
+                ["result"] = 0,
+                ["Result"] = 0,
+                ["R_CODE"] = 0,
+                ["R_MSG"] = "success",
+                ["RESULT_CODE"] = 0,
+                ["RESULT_DESCRIPTION"] = "success",
+                ["LOGIN_PLATFORM"] = "YOSTAR",
+                ["login_platform"] = "YOSTAR",
+                ["platform"] = "YOSTAR",
+                ["Platform"] = "YOSTAR",
+                ["LOGIN_UID"] = uidStr,
+                ["LOGIN_UID_2"] = uidStr,
+                ["login_uid"] = uidStr,
+                ["uid"] = uidStr,
+                ["UID"] = uidStr,
+                ["LOGIN_TOKEN"] = token,
+                ["login_token"] = token,
+                ["token"] = token,
+                ["Token"] = token,
+                ["LOGIN_NAME"] = email,
+                ["login_name"] = email,
+                ["YOSTAR_NAME"] = email,
+                ["data"] = data,
+                ["Data"] = data
+            };
+
+            var jsonStr = Newtonsoft.Json.JsonConvert.SerializeObject(root);
+            return Content(jsonStr, "application/json");
+        }
+
+        private static Dictionary<string, object> BuildUserInfoDict(string uidStr, string token, long nowSec)
+        {
+            return new Dictionary<string, object>
+            {
+                ["id"] = uidStr,
+                ["ID"] = uidStr,
+                ["uid"] = uidStr,
+                ["UID"] = uidStr,
+                ["uid2"] = uidStr,
+                ["UID2"] = uidStr,
+                ["pid"] = uidStr,
+                ["PID"] = uidStr,
+                ["token"] = token,
+                ["Token"] = token,
+                ["birthday"] = "2000-01-01",
+                ["Birthday"] = "2000-01-01",
+                ["reg_channel"] = "YOSTAR",
+                ["RegChannel"] = "YOSTAR",
+                ["trans_code"] = "",
+                ["TransCode"] = "",
+                ["state"] = 1,
+                ["State"] = 1,
+                ["device_id"] = "shittim-device",
+                ["DeviceID"] = "shittim-device",
+                ["created_at"] = nowSec,
+                ["CreatedAt"] = nowSec
+            };
+        }
+
+        private static Dictionary<string, object> BuildYostarDict(string uidStr, string nick, long nowSec)
+        {
+            return new Dictionary<string, object>
+            {
+                ["id"] = uidStr,
+                ["ID"] = uidStr,
+                ["country"] = "JP",
+                ["Country"] = "JP",
+                ["nickname"] = nick,
+                ["Nickname"] = nick,
+                ["name"] = nick,
+                ["Name"] = nick,
+                ["picture"] = "",
+                ["Picture"] = "",
+                ["state"] = 1,
+                ["State"] = 1,
+                ["agree_ad"] = 1,
+                ["AgreeAd"] = 1,
+                ["created_at"] = nowSec,
+                ["CreatedAt"] = nowSec
+            };
         }
     }
 }
+
