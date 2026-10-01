@@ -45,6 +45,8 @@ namespace Shittim_Server.Controllers.Api
         }
 
         [HttpGet("{filename}.json")]
+        [HttpGet("/api/{filename}.json")]
+        [HttpGet("/server_config/{filename}.json")]
         public ActionResult GetYostarServerConfig(string filename)
         {
             var hostAddr = Config.Instance.ServerConfiguration.HostAddress;
@@ -58,28 +60,29 @@ namespace Shittim_Server.Controllers.Api
                     new JObject
                     {
                         ["Name"] = "Prod-Audit",
-                        ["ManagementDataUrl"] = "https://prod-noticeindex.bluearchiveyostar.com/prod/index.json",
+                        ["ManagementDataUrl"] = $"http://{hostAddr}:{hostPort}/prod/index.json",
+                        ["AddressablesCatalogUrlRoot"] = $"http://{hostAddr}:{hostPort}/addressables",
                         ["IsProductionAddressables"] = true,
                         ["ApiUrl"] = $"http://{hostAddr}:{hostPort}/api/",
                         ["GatewayUrl"] = $"http://{hostAddr}:{gatewayPort}/api/",
                         ["KibanaLogUrl"] = $"http://{hostAddr}:{hostPort}/log",
-                        ["ProhibitedWordBlackListUri"] = "https://prod-notice.bluearchiveyostar.com/prod/ProhibitedWord/blacklist.csv",
-                        ["ProhibitedWordWhiteListUri"] = "https://prod-notice.bluearchiveyostar.com/prod/ProhibitedWord/whitelist.csv",
+                        ["ProhibitedWordBlackListUri"] = $"http://{hostAddr}:{hostPort}/prod/ProhibitedWord/blacklist.csv",
+                        ["ProhibitedWordWhiteListUri"] = $"http://{hostAddr}:{hostPort}/prod/ProhibitedWord/whitelist.csv",
                         ["CustomerServiceUrl"] = "https://bluearchive.jp/contact-1-hint",
                         ["OverrideConnectionGroups"] = new JArray
                         {
                             new JObject
                             {
                                 ["Name"] = "1.0",
-                                ["AddressablesCatalogUrlRoot"] = "https://prod-clientpatch.bluearchiveyostar.com/m28_1_0_1_mashiro3"
+                                ["AddressablesCatalogUrlRoot"] = $"http://{hostAddr}:{hostPort}/addressables"
                             },
                             new JObject
                             {
                                 ["Name"] = "1.73",
-                                ["AddressablesCatalogUrlRoot"] = "https://prod-clientpatch.bluearchiveyostar.com/r96_3cpn8ebtdjiqi6y9qtn1"
+                                ["AddressablesCatalogUrlRoot"] = $"http://{hostAddr}:{hostPort}/addressables"
                             }
                         },
-                        ["BundleVersion"] = "s8tloc7lo3",
+                        ["BundleVersion"] = "Remote",
                         ["IsLivePublished"] = true
                     }
                 }

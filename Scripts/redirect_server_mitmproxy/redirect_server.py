@@ -98,6 +98,8 @@ REWRITE_HOST_LIST = [
     # Blue Archive JP (Yostar) hosts
     'prod-game.bluearchiveyostar.com',
     'yostar-serverinfo.bluearchiveyostar.com',
+    'prod-notice.bluearchiveyostar.com',
+    'prod-clientpatch.bluearchiveyostar.com',
     'jp-sdk-api.yostarplat.com',
     'account.yostar.co.jp',
     'account.yo-star.com',
@@ -119,9 +121,7 @@ PING_HOST_REDIRECT = [
 ]
 
 OTHER_KILL_HOST = [
-    'blacklist.csv',
-    'chattingblacklist.csv',
-    'whitelist.csv'
+    # Prohibited words (blacklist.csv, whitelist.csv) are served by ProhibitedWordController
 ]
 
 def request_host(flow: http.HTTPFlow) -> str:
