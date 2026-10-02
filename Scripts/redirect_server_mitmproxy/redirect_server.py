@@ -243,7 +243,17 @@ def request(flow: http.HTTPFlow) -> None:
         return
 
     # Stub Yostar notice and log collector endpoints
-    if host in ('prod-noticeindex.bluearchiveyostar.com', 'prod-logcollector.bluearchiveyostar.com'):
+    if host == 'prod-logcollector.bluearchiveyostar.com':
+        try:
+            body = flow.request.get_text()
+        except Exception:
+            body = str(flow.request.content)
+        rlog(f"  -> LOGCOLLECTOR BODY: {body}")
+        print(f"[LOGCOLLECTOR] {body}")
+        flow.response = http.Response.make(200, b"{}", {"Content-Type": "application/json"})
+        return
+
+    if host == 'prod-noticeindex.bluearchiveyostar.com':
         rlog(f"  -> STUB empty-json {host}")
         flow.response = http.Response.make(200, b"{}", {"Content-Type": "application/json"})
         return

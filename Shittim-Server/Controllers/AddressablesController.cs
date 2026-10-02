@@ -19,6 +19,7 @@ namespace Shittim_Server.Controllers
             _logger = logger;
         }
 
+        [HttpGet("/")]
         [HttpGet("/test.txt")]
         [HttpGet("test.txt")]
         public IActionResult GetTestTxt()
@@ -73,7 +74,7 @@ namespace Shittim_Server.Controllers
         public IActionResult Get(string path)
         {
             if (string.IsNullOrEmpty(path))
-                return NotFound();
+                return Content("ok", "text/plain");
 
             var file = Path.GetFileName(path);
 
@@ -90,12 +91,21 @@ namespace Shittim_Server.Controllers
                 {
                     if (jpStreaming != null)
                     {
-                        var jpHashPath = Path.Combine(jpStreaming, "catalog_Remote.hash");
-                        if (System.IO.File.Exists(jpHashPath))
+                        var candidates = new[]
                         {
-                            var hash = System.IO.File.ReadAllText(jpHashPath).Trim();
-                            _logger.LogInformation("Serving JP catalog hash for {File}: {Hash}", file, hash);
-                            return Content(hash, "text/plain");
+                            Path.Combine(jpStreaming, "Windows_PatchPack", file),
+                            Path.Combine(jpStreaming, file),
+                            Path.Combine(jpStreaming, "catalog_Remote.hash")
+                        };
+
+                        foreach (var cand in candidates)
+                        {
+                            if (System.IO.File.Exists(cand))
+                            {
+                                var hash = System.IO.File.ReadAllText(cand).Trim();
+                                _logger.LogInformation("Serving JP catalog hash for {File} from {Cand}: {Hash}", file, cand, hash);
+                                return Content(hash, "text/plain");
+                            }
                         }
                     }
 
@@ -113,11 +123,40 @@ namespace Shittim_Server.Controllers
                 {
                     if (jpStreaming != null)
                     {
-                        var jpJsonPath = Path.Combine(jpStreaming, "catalog_Remote.json");
-                        if (System.IO.File.Exists(jpJsonPath))
+                        var candidates = new[]
                         {
-                            _logger.LogInformation("Serving JP catalog json from {Path}", jpJsonPath);
-                            return PhysicalFile(jpJsonPath, "application/json");
+                            Path.Combine(jpStreaming, "Windows_PatchPack", file),
+                            Path.Combine(jpStreaming, file),
+                            Path.Combine(jpStreaming, "catalog_Remote.json")
+                        };
+
+                        foreach (var cand in candidates)
+                        {
+                            if (System.IO.File.Exists(cand))
+                            {
+                                _logger.LogInformation("Serving JP catalog json from {Path}", cand);
+                                return PhysicalFile(cand, "application/json");
+                            }
+                        }
+                    }
+                }
+                else if (file.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (jpStreaming != null)
+                    {
+                        var candidates = new[]
+                        {
+                            Path.Combine(jpStreaming, "Windows_PatchPack", file),
+                            Path.Combine(jpStreaming, file)
+                        };
+
+                        foreach (var cand in candidates)
+                        {
+                            if (System.IO.File.Exists(cand))
+                            {
+                                _logger.LogInformation("Serving JP catalog zip from {Path}", cand);
+                                return PhysicalFile(cand, "application/zip");
+                            }
                         }
                     }
                 }
@@ -161,12 +200,20 @@ namespace Shittim_Server.Controllers
 
                 if (file.StartsWith("BundlePackingInfo", StringComparison.OrdinalIgnoreCase))
                 {
-                    var local = Path.Combine(jpStreaming, "AssetBundles", "Catalog", file);
-                    if (System.IO.File.Exists(local))
+                    var candidates = new[]
                     {
-                        if (file.EndsWith(".hash", StringComparison.OrdinalIgnoreCase))
-                            return Content(System.IO.File.ReadAllText(local).Trim(), "text/plain");
-                        return PhysicalFile(local, "application/octet-stream");
+                        Path.Combine(jpStreaming, "Windows_PatchPack", file),
+                        Path.Combine(jpStreaming, "AssetBundles", "Catalog", file)
+                    };
+
+                    foreach (var local in candidates)
+                    {
+                        if (System.IO.File.Exists(local))
+                        {
+                            if (file.EndsWith(".hash", StringComparison.OrdinalIgnoreCase))
+                                return Content(System.IO.File.ReadAllText(local).Trim(), "text/plain");
+                            return PhysicalFile(local, "application/octet-stream");
+                        }
                     }
                 }
             }
@@ -189,6 +236,13 @@ namespace Shittim_Server.Controllers
                 var byName = Path.Combine(jpStreaming, file);
                 if (System.IO.File.Exists(byName))
                     return PhysicalFile(byName, "application/octet-stream");
+
+                var patchPack = Path.Combine(jpStreaming, "Windows_PatchPack", file);
+                if (System.IO.File.Exists(patchPack))
+                    return PhysicalFile(patchPack, "application/octet-stream");
+
+                _logger.LogWarning("File not found for JP client: {Path}. Not redirecting to Global CDN.", path);
+                return NotFound();
             }
 
             return Redirect($"{Config.Instance.ServerConfiguration.CdnBaseUrl}/{path}");
