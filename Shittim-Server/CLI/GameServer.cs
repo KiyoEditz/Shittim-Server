@@ -117,6 +117,7 @@ namespace Shittim.CLI
                 builder.Services.AddSingleton<ModCatalogService>();
 
                 builder.Services.AddHostedService<Shittim_Server.GameClient.GameClientService>();
+                builder.Services.Configure<HostOptions>(opts => opts.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
 
                 builder.Services.AddCors(options =>
                 {

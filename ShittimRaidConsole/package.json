@@ -1,6 +1,6 @@
 {
   "name": "shittim-raid-console",
-  "version": "2026.8.8",
+  "version": "2026.10.6",
   "description": "Admin console for the Shittim world raid coordinator",
   "main": "main.js",
   "author": "Neoexm",
