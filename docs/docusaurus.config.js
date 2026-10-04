@@ -9,7 +9,7 @@ const config = {
 
   url: 'https://docs.shittem-server.com',
   baseUrl: '/',
-  organizationName: 'Neoexm',
+  organizationName: 'KiyoEditz',
   projectName: 'Shittim-Server',
   trailingSlash: false,
 
@@ -28,7 +28,7 @@ const config = {
         docs: {
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
-          editUrl: 'https://github.com/Neoexm/Shittim-Server/tree/main/docs/',
+          editUrl: 'https://github.com/KiyoEditz/Shittim-Server/tree/main/docs/',
         },
         blog: false,
         theme: { customCss: require.resolve('./src/css/custom.css') },
@@ -46,7 +46,7 @@ const config = {
           { type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Documentation' },
           { to: '/modding/', label: 'Make a student', position: 'left' },
           { href: 'https://discord.gg/GANwPn9xX6', label: 'Discord', position: 'right' },
-          { href: 'https://github.com/Neoexm/Shittim-Server', label: 'GitHub', position: 'right' },
+          { href: 'https://github.com/KiyoEditz/Shittim-Server', label: 'GitHub', position: 'right' },
         ],
       },
       footer: {
@@ -65,7 +65,7 @@ const config = {
             title: 'Elsewhere',
             items: [
               { label: 'Discord', href: 'https://discord.gg/GANwPn9xX6' },
-              { label: 'Releases', href: 'https://github.com/Neoexm/Shittim-Server/releases' },
+              { label: 'Releases', href: 'https://github.com/KiyoEditz/Shittim-Server/releases' },
             ],
           },
         ],

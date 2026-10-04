@@ -16,7 +16,9 @@ namespace Shittim_Server.Services
         //
         // The three byte runs are located by content (an AOB scan) rather than by fixed file offsets: the offsets move every time the client is rebuilt, and build 439170 shifted all three by +0x49B0.
         // Writing at a stale offset corrupts whatever IL2CPP metadata now lives there and hangs the client at "Unpacking game resources". A scan also fails safe: a chunk that cannot be found means no write at all.
-        private const string OfficialGatewayPublicKeyPem =
+        private const string OfficialGatewayPublicKeyPem = OfficialGatewayPublicKeyPemGlobal;
+
+        private const string OfficialGatewayPublicKeyPemGlobal =
             "-----BEGIN PUBLIC KEY-----\n" +
             "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAz1oODtVINPQsTIbFDiL2\n" +
             "IIj3YqDGxZ1WqJWfJrpo7ZqdnSIMXaVqVyM07Zguc9wczPrluDNowheP8NXe8uTR\n" +
@@ -30,6 +32,22 @@ namespace Shittim_Server.Services
             "9koBBEnnrIN0zXDBioZUDOWVBeBZwAydpPGKu2mkqu3BI/Al92noEHc6fmkG5+Qm\n" +
             "b237xSh1DFbbQO6lxg4ABdsqgvZskYS+7BcQPjs1z2zftrnesFkqD7BhbqXUBuDY\n" +
             "D80B8Be5I483qSSy8DsW458CAwEAAQ==\n" +
+            "-----END PUBLIC KEY-----";
+
+        private const string OfficialGatewayPublicKeyPemJp =
+            "-----BEGIN PUBLIC KEY-----\n" +
+            "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAxAfixaewGFj+LYKSPzBP\n" +
+            "/6Ar/Z4MUQhVxER+F0oFvZnI0Ikh6MAeNT1oWr0bMsZyYASGtBWLuAIddKZm9SVB\n" +
+            "Yt7sqOIZLlxJunEG0bC94LOy+SX0a09z9kJ3WrUx9UDOsiZ67KzsUcG07w2ItbJ2\n" +
+            "mZ4e95ksyA44BP6yIKHgHoP7I8JoJ5OHas2wjbcyw6S9mWjJxxczUiC/3+2/caAC\n" +
+            "9pHea71voLVSAk4hOLKu8wqVgnmxUpnSWSFGlmyriQWnYkxOGMCsX7Ahu41huQbT\n" +
+            "H9ULnSdrFRo3kB5k0V9f3s+Q28XWaAdYJGO9biRcVzu5paT80r8qOX43AiNR6iBD\n" +
+            "lu2Vm8+lNTp5rEJsqCEz0GyJO/kKPiFJ97e93nnuXhI1k4YB4FyfMeSJfbUL1cNm\n" +
+            "r542flRVqlou0dL66R+Gnr+FLtJ7wHjQ4MP8yOzO8/JTcHx0v4qXmgvpw1zZMkBI\n" +
+            "gOVZAiE/mz/F8LDYsCkASRsfebYjpyWXrqBdcFLTadjlXlde7oeZKa+LfZrzyXiZ\n" +
+            "h3aDPqt5XRypdYhjJwfGvSwOqZLxjhlS1HuXZJLaI+536mCSehuBH/nbtxMheV4x\n" +
+            "ztx3Hx1np0s7et+lVyCXdboVBZuOBJcuXILZ51LlqEAyicN0r1hygk3Iv+YjLo+A\n" +
+            "9foCnc5dNcTx2IIgXAuJYjECAwEAAQ==\n" +
             "-----END PUBLIC KEY-----";
 
         private static readonly JsonSerializerOptions JsonOptions = new()
@@ -79,9 +97,13 @@ namespace Shittim_Server.Services
                     return Task.CompletedTask;
                 }
 
-                var officialChunks = BuildKeyChunks(OfficialGatewayPublicKeyPem, "official gateway public key");
+                var officialCandidates = new[]
+                {
+                    BuildKeyChunks(OfficialGatewayPublicKeyPemGlobal, "official global gateway public key"),
+                    BuildKeyChunks(OfficialGatewayPublicKeyPemJp, "official JP gateway public key")
+                };
                 var targetChunks = BuildKeyChunks(publicKey, "gateway public key");
-                patchState = PatchMetadata(metadataPath, officialChunks, targetChunks);
+                patchState = PatchMetadata(metadataPath, officialCandidates, targetChunks);
             }
             catch (Exception ex)
             {
@@ -105,43 +127,67 @@ namespace Shittim_Server.Services
             return Task.CompletedTask;
         }
 
-        private MetadataPatchState PatchMetadata(string path, byte[][] officialChunks, byte[][] targetChunks)
+        private MetadataPatchState PatchMetadata(string path, byte[][][] officialCandidates, byte[][] targetChunks)
         {
             var statePath = GetStatePath(path);
             var fileBytes = File.ReadAllBytes(path);
 
-            // Resolve where each key chunk currently lives by scanning for its bytes: a chunk is either still the official key (needs patching) or already ours (patched on an earlier run).
-            // If neither turns up, abort without writing rather than corrupt the file.
+            // Resolve where each key chunk currently lives by scanning for its bytes: a chunk is either still an official key (needs patching) or already ours (patched on an earlier run).
             var offsets = new long[ChunkCount];
             var alreadyPatched = true;
             for (var i = 0; i < ChunkCount; i++)
             {
-                if (TryLocateUnique(fileBytes, officialChunks[i], out var officialOffset))
-                {
-                    offsets[i] = officialOffset;
-                    alreadyPatched = false;
-                }
-                else if (TryLocateUnique(fileBytes, targetChunks[i], out var patchedOffset))
+                if (TryLocateUnique(fileBytes, targetChunks[i], out var patchedOffset))
                 {
                     offsets[i] = patchedOffset;
                 }
                 else
                 {
-                    logger.LogWarning(
-                        "Gateway public key chunk {Index} was not found in client metadata. The client build " +
-                        "may have changed how the key is stored; leaving {MetadataPath} unchanged to avoid " +
-                        "corrupting it.", i, path);
-                    return null;
+                    alreadyPatched = false;
+                    break;
                 }
             }
 
             if (alreadyPatched)
             {
-                // The official key is a known constant, so the original bytes stay recoverable regardless of any stale sidecar left by an older client build.
-                var state = CreateState(offsets, officialChunks, targetChunks);
+                var state = LoadState(statePath) ?? CreateState(offsets, officialCandidates[0], targetChunks);
                 SaveState(statePath, state);
                 logger.LogInformation("Client metadata already patched: {MetadataPath}", path);
                 return state;
+            }
+
+            byte[][]? matchedOfficialChunks = null;
+            foreach (var candidate in officialCandidates)
+            {
+                var candidateOffsets = new long[ChunkCount];
+                var matched = true;
+                for (var i = 0; i < ChunkCount; i++)
+                {
+                    if (TryLocateUnique(fileBytes, candidate[i], out var off))
+                    {
+                        candidateOffsets[i] = off;
+                    }
+                    else
+                    {
+                        matched = false;
+                        break;
+                    }
+                }
+
+                if (matched)
+                {
+                    offsets = candidateOffsets;
+                    matchedOfficialChunks = candidate;
+                    break;
+                }
+            }
+
+            if (matchedOfficialChunks == null)
+            {
+                logger.LogWarning(
+                    "Gateway public key chunks were not found in client metadata: {MetadataPath}. The client build " +
+                    "may have changed how the key is stored; leaving it unchanged to avoid corrupting it.", path);
+                return null;
             }
 
             using (var stream = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
@@ -149,7 +195,7 @@ namespace Shittim_Server.Services
                 WriteChunks(stream, offsets, targetChunks);
             }
 
-            var patchState = CreateState(offsets, officialChunks, targetChunks);
+            var patchState = CreateState(offsets, matchedOfficialChunks, targetChunks);
             SaveState(statePath, patchState);
 
             logger.LogInformation("Patched client metadata gateway key at 0x{O0:X}, 0x{O1:X}, 0x{O2:X}: {MetadataPath}",
@@ -338,8 +384,20 @@ namespace Shittim_Server.Services
             if (!string.IsNullOrWhiteSpace(configuredPath))
                 return ResolvePath(configuredPath);
 
-            // Any Steam library can hold the install.
-            return SteamGameLocator.FindGameFile(Path.Combine("BlueArchive_Data", "il2cpp_data", "Metadata", "global-metadata.dat"));
+            var metadataRel = Path.Combine("BlueArchive_Data", "il2cpp_data", "Metadata", "global-metadata.dat");
+
+            if (Config.Instance.ServerConfiguration.EnableJpClient)
+            {
+                var jpPath = YostarGameLocator.FindGameFile(metadataRel);
+                if (!string.IsNullOrWhiteSpace(jpPath))
+                    return jpPath;
+            }
+
+            var steamPath = SteamGameLocator.FindGameFile(metadataRel);
+            if (!string.IsNullOrWhiteSpace(steamPath))
+                return steamPath;
+
+            return YostarGameLocator.FindGameFile(metadataRel) ?? string.Empty;
         }
 
         private static string GetGatewayPublicKey()

@@ -75,7 +75,7 @@ export function renderProjectGate(appRoot, status, { titlebar }) {
 
   const downloadCard = el('div.card', {},
     el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: 'Download latest' }),
-      el('span.sub', { text: 'Neoexm/Shittim-Server - main' }), el('div.spacer', {})),
+      el('span.sub', { text: 'KiyoEditz/Shittim-Server - main' }), el('div.spacer', {})),
     el('div.card-body', {},
       el('p', {
         html: 'Fetches a zip of the latest commit from GitHub.',

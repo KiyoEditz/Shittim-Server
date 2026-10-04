@@ -20,6 +20,7 @@ const DEFAULT_SERVER_CONFIG = {
   BypassAuthentication: false,
   UseCustomExcel: false,
   KoyukiIncident: false,
+  EnableJpClient: false,
   AutoCheckVersion: true,
   AutoUpdateVersion: true,
   AutoUpdateResources: false,
@@ -47,6 +48,7 @@ const GROUPS = [
       { key: 'BypassAuthentication', label: 'Bypass authentication', type: 'bool' },
       { key: 'UseCustomExcel', label: 'Custom Excel tables', type: 'bool' },
       { key: 'KoyukiIncident', label: 'Koyuki incident', type: 'bool', desc: 'nihahaha' },
+      { key: 'EnableJpClient', label: 'Blue Archive JP support', type: 'bool', desc: 'Enable standalone Blue Archive JP client support and auto-detection' },
       { key: 'AutoCheckVersion', label: 'Auto-check version', type: 'bool', desc: 'Resolve latest data version on boot' },
       { key: 'AutoUpdateVersion', label: 'Auto-update version', type: 'bool' },
       { key: 'AutoUpdateResources', label: 'Auto-update resources', type: 'bool', desc: 'Re-download game data (Excel, HexaMap) when the version changes' },
@@ -70,7 +72,7 @@ const GROUPS = [
   {
     title: 'Client auto-patching', icon: 'shield',
     fields: [
-      { key: 'ClientInstallDirectory', label: 'Game install directory', type: 'dir', hint: 'blank = look for the Steam install; the per-patch overrides below are only needed when one file lives somewhere else' },
+      { key: 'ClientInstallDirectory', label: 'Game install directory', type: 'dir', hint: 'blank = auto-detect game install (Steam or Yostar JP); the per-patch overrides below are only needed when one file lives somewhere else' },
       { key: 'AutoPatchClientMetadata', label: 'Patch metadata', type: 'bool', path: 'ClientMetadataPath' },
       { key: 'AutoPatchClientGamescaleIas', label: 'Patch gamescale.core IAS', type: 'bool', path: 'ClientGamescaleCorePath' },
       { key: 'AutoPatchClientInfaceConfig', label: 'Patch inface config', type: 'bool', path: 'ClientInfaceConfigPath' },

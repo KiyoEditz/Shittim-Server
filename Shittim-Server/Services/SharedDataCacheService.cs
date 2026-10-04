@@ -63,7 +63,8 @@ public class SharedDataCacheService
     {
         return pickupDupBonus
             .Where(x => x.ShopCategoryType == ShopCategoryType.FesGacha)
-            .Select(x => characterExcel.First(c => c.Id == x.PickupCharacterId))
+            .Select(x => characterExcel.FirstOrDefault(c => c.Id == x.PickupCharacterId))
+            .Where(c => c != null)!
             .DistinctBy(x => x.Id).ToList();
     }
 

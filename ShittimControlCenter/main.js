@@ -398,7 +398,7 @@ async function runEnvChecks() {
 
 const US = '';
 
-const GH = { owner: 'Neoexm', repo: 'Shittim-Server', branch: 'main' };
+const GH = { owner: 'KiyoEditz', repo: 'Shittim-Server', branch: 'main' };
 const GH_UA = 'ShittimControlCenter';
 const VERSION_FILE = 'shittim-version.json';
 

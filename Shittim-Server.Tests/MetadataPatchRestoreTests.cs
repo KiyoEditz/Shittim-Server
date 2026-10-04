@@ -88,6 +88,44 @@ public class MetadataPatchRestoreTests : IDisposable
         Assert.Equal(_official, File.ReadAllBytes(_path));
     }
 
+    [Fact]
+    public async Task TurningThePatchOffPutsTheOfficialJpKeyBack()
+    {
+        var jpPem = (string)typeof(ClientMetadataPatchService)
+            .GetField("OfficialGatewayPublicKeyPemJp", BindingFlags.NonPublic | BindingFlags.Static)!
+            .GetRawConstantValue()!;
+
+        var jpKey = Encoding.ASCII.GetBytes(jpPem.Replace("\r\n", "\n").TrimEnd('\n'));
+        var lengths = (int[])typeof(ClientMetadataPatchService)
+            .GetField("ChunkLengths", BindingFlags.NonPublic | BindingFlags.Static)!
+            .GetValue(null)!;
+
+        var jpPath = Path.Combine(_dir, "global-metadata-jp.dat");
+        var data = new byte[8192];
+        Array.Fill(data, (byte)0x42);
+        var at = 0;
+        foreach (var (offset, length) in new[] { 600, 3200, 6800 }.Zip(lengths))
+        {
+            jpKey.AsSpan(at, length).CopyTo(data.AsSpan(offset));
+            at += length;
+        }
+
+        File.WriteAllBytes(jpPath, data);
+        Environment.SetEnvironmentVariable("SHITTIM_CLIENT_METADATA_PATH", jpPath);
+        Environment.SetEnvironmentVariable("SHITTIM_AUTO_PATCH_METADATA", "true");
+
+        var service = new ClientMetadataPatchService(_log);
+        await service.StartAsync(CancellationToken.None);
+        Assert.NotEqual(data, File.ReadAllBytes(jpPath));
+
+        Environment.SetEnvironmentVariable("SHITTIM_AUTO_PATCH_METADATA", "false");
+        var service2 = new ClientMetadataPatchService(_log);
+        await service2.StartAsync(CancellationToken.None);
+
+        Assert.Equal(data, File.ReadAllBytes(jpPath));
+        Assert.False(File.Exists(jpPath + ".shittim_patch.json"));
+    }
+
     private async Task Run()
     {
         var service = new ClientMetadataPatchService(_log);
