@@ -59,15 +59,14 @@ export default {
 
       function paintList() {
         const q = searchInput.value.trim().toLowerCase();
-        const rows = allRows.filter((a) => !q || a.nickname.toLowerCase().includes(q) || String(a.serverId).includes(q) || (a.email && a.email.toLowerCase().includes(q)));
+        const rows = allRows.filter((a) => !q || a.nickname.toLowerCase().includes(q) || String(a.serverId).includes(q));
         clear(listBody);
         if (!rows.length) { listBody.appendChild(emptyState(q ? 'No match' : 'No accounts')); return; }
         const tbl = frag('<table class="tbl" style="table-layout:fixed"><thead><tr><th style="width:74px">ID</th><th>Nickname</th><th style="width:54px">Lvl</th></tr></thead><tbody></tbody></table>');
         const tb = tbl.querySelector('tbody');
         for (const a of rows) {
           const inGame = a.serverId === gameAccountId ? '<span class="tag" style="flex:none">in game</span>' : '';
-          const emailBadge = a.email ? `<span class="tag" style="flex:none;background:rgba(0,180,216,0.15);color:var(--accent);font-size:10px;padding:1px 5px" title="JP Yostar: ${escapeHtml(a.email)}">JP</span>` : '';
-          const tr = frag(`<tr><td class="num" data-selectable>${a.serverId}</td><td style="max-width:0"><div style="display:flex;align-items:center;gap:6px;min-width:0"><b data-selectable style="font-family:var(--font-round);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.nickname)}</b>${emailBadge}${inGame}</div></td><td class="num">${a.level}</td></tr>`);
+          const tr = frag(`<tr><td class="num" data-selectable>${a.serverId}</td><td style="max-width:0"><div style="display:flex;align-items:center;gap:6px;min-width:0"><b data-selectable style="font-family:var(--font-round);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.nickname)}</b>${inGame}</div></td><td class="num">${a.level}</td></tr>`);
           if (a.serverId === store.get().targetId) tr.classList.add('sel');
           tr.addEventListener('click', () => { store.set({ targetId: a.serverId }); paintList(); loadDetail(a.serverId); });
           tb.appendChild(tr);
@@ -77,7 +76,7 @@ export default {
 
       function fillGameSel() {
         clear(gameSel);
-        for (const o of [{ value: 0, label: 'Follow the Steam account (Default)' }, ...allRows.map((a) => ({ value: a.serverId, label: `${a.nickname} (#${a.serverId})${a.email ? ` [${a.email}]` : ''}` }))]) {
+        for (const o of [{ value: 0, label: 'Follow the Steam account' }, ...allRows.map((a) => ({ value: a.serverId, label: `${a.nickname} (#${a.serverId})` }))]) {
           const opt = document.createElement('option');
           opt.value = o.value;
           opt.textContent = o.label;
@@ -113,7 +112,6 @@ export default {
 
       function renderDetail(body, d) {
         const fNick = input({ value: d.nickname || '' });
-        const fEmail = input({ value: d.email || '', placeholder: 'e.g. sensei@shittim.local (for Blue Archive JP)' });
         const fComment = input({ value: d.comment || '' });
         const fLevel = input({ value: d.level ?? 1, type: 'number' });
         const fExp = input({ value: d.exp ?? 0, type: 'number' });
@@ -121,24 +119,15 @@ export default {
 
         const idGrid = el('div.grid-2', {},
           field('Nickname', fNick),
-          field('Email (Yostar JP login)', fEmail),
           field('Comment', fComment),
           field('Level', fLevel),
           field('Experience', fExp),
           field('VIP level', fVip));
         body.appendChild(idGrid);
         const saveId = button('Save identity', { variant: 'primary', iconName: 'save', onClick: async () => {
-          const r = await api.accountUpdate({
-            serverId: d.serverId,
-            nickname: fNick.value,
-            email: fEmail.value,
-            comment: fComment.value,
-            level: Number(fLevel.value),
-            exp: Number(fExp.value),
-            vipLevel: Number(fVip.value)
-          }).then(() => ({ ok: true })).catch((e) => ({ ok: false, error: e.message }));
+          const r = await api.accountUpdate({ serverId: d.serverId, nickname: fNick.value, comment: fComment.value, level: Number(fLevel.value), exp: Number(fExp.value), vipLevel: Number(fVip.value) }).then(() => ({ ok: true })).catch((e) => ({ ok: false, error: e.message }));
           toast(r.ok ? 'Account updated' : r.error, r.ok ? 'good' : 'bad');
-          if (r.ok) { notifyRestart(); reloadAccounts().then((rows) => { allRows = rows; paintList(); fillGameSel(); }); }
+          if (r.ok) { notifyRestart(); reloadAccounts().then((rows) => { allRows = rows; paintList(); }); }
         }});
         body.appendChild(el('div', { style: { marginTop: '4px' } }, saveId));
 
@@ -202,21 +191,15 @@ export default {
 
       function openCreate() {
         const nick = input({ value: 'Sensei' });
-        const emailInput = input({ placeholder: 'sensei@shittim.local (Optional for JP)' });
         const create = button('Create account', { variant: 'primary', iconName: 'plus' });
         const cancel = button('Cancel', { variant: 'ghost' });
-        const ref = modal({ title: 'New account', body: el('div', { style: { display: 'flex', flexDirection: 'column', gap: '12px' } },
-          field('Nickname', nick),
-          field('Email (Yostar JP login)', emailInput)),
+        const ref = modal({ title: 'New account', body: el('div', {}, field('Nickname', nick)),
           footer: [cancel, create] });
         cancel.addEventListener('click', ref.close);
         create.addEventListener('click', async () => {
           create.disabled = true;
           try {
-            const r = await api.accountCreate({
-              nickname: nick.value.trim() || 'Sensei',
-              email: emailInput.value.trim() || null
-            });
+            const r = await api.accountCreate({ nickname: nick.value.trim() || 'Sensei' });
             ref.close(); toast(`Created "${nick.value}" (#${r.serverId})`, 'good');
             store.set({ targetId: r.serverId });
             await loadList();

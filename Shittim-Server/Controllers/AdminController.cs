@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Schale.Data;
 using Schale.Data.GameModel;
 using Schale.FlatData;
@@ -101,17 +100,12 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet("accounts")]
-    public async Task<IActionResult> GetAccounts()
+    public IActionResult GetAccounts()
     {
         try
         {
-            var userAccounts = await _context.UserAccounts
-                .Where(u => u.Email != null)
-                .ToListAsync();
-            var emailByUid = userAccounts.Where(u => u.Uid > 0).ToDictionary(u => u.Uid, u => u.Email);
-            var emailByPublisher = userAccounts.ToDictionary(u => u.NpSN, u => u.Email);
-
-            var accounts = await _context.Accounts
+            // AI clients (the Schale assist bot) carry a DevId; they are server-owned and stay out of the roster.
+            var accounts = _context.Accounts
                 .Where(a => a.DevId == null)
                 .Select(a => new
                 {
@@ -119,30 +113,11 @@ public class AdminController : ControllerBase
                     a.Nickname,
                     a.Level,
                     a.Exp,
-                    a.Comment,
-                    a.PublisherAccountId
+                    a.Comment
                 })
-                .ToListAsync();
-
-            var result = accounts.Select(a =>
-            {
-                string? email = null;
-                if (!emailByUid.TryGetValue(a.ServerId, out email) && a.PublisherAccountId.HasValue)
-                {
-                    emailByPublisher.TryGetValue(a.PublisherAccountId.Value, out email);
-                }
-                return new
-                {
-                    a.ServerId,
-                    a.Nickname,
-                    a.Level,
-                    a.Exp,
-                    a.Comment,
-                    Email = email
-                };
-            });
-
-            return Ok(result);
+                .ToList();
+            
+            return Ok(accounts);
         }
         catch (Exception ex)
         {

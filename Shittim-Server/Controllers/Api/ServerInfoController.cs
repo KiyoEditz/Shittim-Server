@@ -44,62 +44,7 @@ namespace Shittim_Server.Controllers.Api
             return Content(result.ToString(Newtonsoft.Json.Formatting.None), "text/plain");
         }
 
-        [HttpGet("{filename}.json")]
-        [HttpGet("/api/{filename}.json")]
-        [HttpGet("/server_config/{filename}.json")]
-        public ActionResult GetYostarServerConfig(string filename)
-        {
-            var hostAddr = Config.Instance.ServerConfiguration.HostAddress;
-            var hostPort = Config.Instance.ServerConfiguration.HostPort;
-            var gatewayPort = Config.Instance.ServerConfiguration.GatewayPort;
-
-            var jpConfig = new JObject
-            {
-                ["ConnectionGroups"] = new JArray
-                {
-                    new JObject
-                    {
-                        ["Name"] = "Prod-Audit",
-                        ["ManagementDataUrl"] = $"http://{hostAddr}:{hostPort}/prod/index.json",
-                        ["AddressablesCatalogUrlRoot"] = $"http://{hostAddr}:{hostPort}/addressables",
-                        ["IsProductionAddressables"] = true,
-                        ["ApiUrl"] = $"http://{hostAddr}:{hostPort}/api/",
-                        ["GatewayUrl"] = $"http://{hostAddr}:{gatewayPort}/api/",
-                        ["KibanaLogUrl"] = $"http://{hostAddr}:{hostPort}/log",
-                        ["ProhibitedWordBlackListUri"] = $"http://{hostAddr}:{hostPort}/prod/ProhibitedWord/blacklist.csv",
-                        ["ProhibitedWordWhiteListUri"] = $"http://{hostAddr}:{hostPort}/prod/ProhibitedWord/whitelist.csv",
-                        ["CustomerServiceUrl"] = "https://bluearchive.jp/contact-1-hint",
-                        ["OverrideConnectionGroups"] = new JArray
-                        {
-                            new JObject
-                            {
-                                ["Name"] = "1.0",
-                                ["AddressablesCatalogUrlRoot"] = $"http://{hostAddr}:{hostPort}/addressables"
-                            },
-                            new JObject
-                            {
-                                ["Name"] = "1.73",
-                                ["AddressablesCatalogUrlRoot"] = $"http://{hostAddr}:{hostPort}/addressables"
-                            }
-                        },
-                        ["BundleVersion"] = "Remote",
-                        ["IsLivePublished"] = true
-                    }
-                }
-            };
-
-            return Content(jpConfig.ToString(Newtonsoft.Json.Formatting.None), "application/json");
-        }
-
-        [HttpGet("prod/index.json")]
-        [HttpGet("api/prod/index.json")]
-        public ActionResult GetProdNoticeIndex()
-        {
-            return Content("{}", "application/json");
-        }
-
         [HttpPost("log")]
-        [HttpPost("")]
         public async Task<IResult> GetLog()
         {
             using var reader = new StreamReader(Request.Body);

@@ -152,11 +152,9 @@ namespace Shittim_Server.Controllers.Api
         public IResult Ping() => Results.Ok("Pong");
 
         [HttpGet("gateway")]
-        [HttpGet("/gateway")]
         public IResult GatewayHealthCheck() => Results.Ok();
 
         [HttpPost("gateway")]
-        [HttpPost("/gateway")]
         public async Task GatewayRequest()
         {
             var formFile = Request.Form.Files.GetFile("mx");

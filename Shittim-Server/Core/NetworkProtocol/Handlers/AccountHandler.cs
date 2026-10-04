@@ -902,87 +902,27 @@ public class AccountHandler : ProtocolHandlerBase
         AccountCheckYostarRequest request,
         AccountCheckYostarResponse response)
     {
-        long publisherId = 0;
-        string token = "";
+        var ticketBytes = Convert.FromBase64String(request.EnterTicket);
+        var ticketString = Encoding.UTF8.GetString(ticketBytes);
+        var parts = ticketString.Split('/');
 
-        if (!string.IsNullOrWhiteSpace(request.EnterTicket))
-        {
-            string ticketString = request.EnterTicket;
-            try
-            {
-                var ticketBytes = Convert.FromBase64String(request.EnterTicket);
-                ticketString = Encoding.UTF8.GetString(ticketBytes);
-            }
-            catch
-            {
-                // Not base64, use raw string
-            }
+        var publisherId = long.Parse(parts[0]);
+        var token = parts[1];
 
-            var parts = ticketString.Split(new[] { '/', ':' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 2)
-            {
-                long.TryParse(parts[0], out publisherId);
-                token = parts[1];
-            }
-            else if (parts.Length == 1)
-            {
-                if (long.TryParse(parts[0], out var pid))
-                    publisherId = pid;
-                else
-                    token = parts[0];
-            }
-        }
-
-        UserAccount? user = null;
-        if (publisherId > 0)
-        {
-            user = await db.UserAccounts.FirstOrDefaultAsync(u => u.NpSN == publisherId);
-        }
-
-        if (user == null && !string.IsNullOrEmpty(token))
-        {
-            user = await db.UserAccounts.FirstOrDefaultAsync(u => u.NpToken == token);
-            if (user != null)
-                publisherId = user.NpSN;
-        }
-
-        // Check if an account is selected in Control Center
-        var selectedId = Config.Instance.ServerConfiguration.SelectedAccountId;
-        if (user == null && selectedId > 0)
-        {
-            user = await db.UserAccounts.FirstOrDefaultAsync(u => u.Uid == selectedId);
-            if (user != null)
-                publisherId = user.NpSN;
-        }
-
-        user ??= await db.UserAccounts.FirstOrDefaultAsync();
-        if (user != null && publisherId <= 0)
-        {
-            publisherId = user.NpSN;
-        }
+        var user = await db.UserAccounts
+            .FirstOrDefaultAsync(u => u.NpSN == publisherId);
 
         if (user == null)
         {
-            if (publisherId <= 0)
-                publisherId = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-            if (string.IsNullOrEmpty(token))
-                token = $"yostar-{Guid.NewGuid():N}";
-
             var newUser = new UserAccount
             {
                 Uid = -1,
                 NpSN = publisherId,
-                NpToken = token,
-                Email = "sensei@shittim.local"
+                NpToken = token
             };
             db.UserAccounts.Add(newUser);
 
-            var newAccount = new AccountDBServer(publisherId)
-            {
-                Nickname = "Sensei",
-                CallName = "Sensei"
-            };
+            var newAccount = new AccountDBServer(publisherId);
             db.Accounts.Add(newAccount);
 
             await db.SaveChangesAsync();
@@ -994,7 +934,7 @@ public class AccountHandler : ProtocolHandlerBase
             await AccountInitializationService.InitializeCompleteAccount(db, account);
             await db.SaveChangesAsync();
         }
-        else if (!string.IsNullOrEmpty(token) && user.NpToken != token)
+        else if (user.NpToken != token)
         {
             user.NpToken = token;
             await db.SaveChangesAsync();
