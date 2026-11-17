@@ -1,11 +1,11 @@
 {
-  "sha": "2e2613938430c54813938fa690ba3d45e44e1c89",
-  "shortSha": "2e26139",
+  "sha": "d5d1971e02eb82275d77eead78eea39f29bf4adc",
+  "shortSha": "d5d1971",
   "branch": "main",
-  "subject": "revert: hapus total fitur Blue Archive JP support (toggle, config, backend Yostar)",
-  "date": "2026-10-04T04:20:21Z",
+  "subject": "qRTDYFUGIYFTDRSEWTY",
+  "date": "2026-10-04T04:37:50Z",
   "source": "download",
-  "updatedAt": "2026-10-04T04:30:09.737Z",
+  "updatedAt": "2026-10-04T04:38:57.493Z",
   "manifest": [
     ".editorconfig",
     ".github\\workflows\\build-and-release.yml",

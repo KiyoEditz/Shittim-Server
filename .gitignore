@@ -91,6 +91,8 @@ Thumbs.db
 hosts.bak
 hosts.backup
 scratch_logs_2/
+scratch
+scratch/
 
 # Protocol dump + local dump tooling/cache
 /protocol_dump.log
