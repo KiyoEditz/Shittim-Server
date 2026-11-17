@@ -1,11 +1,11 @@
 {
-  "sha": "d5d1971e02eb82275d77eead78eea39f29bf4adc",
-  "shortSha": "d5d1971",
+  "sha": "18dad5a202684b6a3d5430cfe2e55e5713ab7807",
+  "shortSha": "18dad5a",
   "branch": "main",
-  "subject": "qRTDYFUGIYFTDRSEWTY",
-  "date": "2026-10-04T04:37:50Z",
+  "subject": "feat: add server configuration model and version cache files",
+  "date": "2026-11-17T16:06:56Z",
   "source": "download",
-  "updatedAt": "2026-10-04T04:38:57.493Z",
+  "updatedAt": "2026-11-17T16:10:35.408Z",
   "manifest": [
     ".editorconfig",
     ".github\\workflows\\build-and-release.yml",
