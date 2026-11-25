@@ -112,7 +112,7 @@ public class ConsumeResolver
 
     public void HandleEquipmentConsumption(ConsumeRequestDB consumeRequest)
     {
-        foreach (var consumeData in consumeRequest.ConsumeEquipmentServerIdAndCounts)
+        foreach (var consumeData in consumeRequest.ConsumeEquipmentServerIdAndCounts ?? [])
         {
             var equipment = Context.Equipments.FirstOrDefault(x => x.AccountServerId == Account.ServerId && x.ServerId == consumeData.Key);
             if (equipment == null) continue;
@@ -133,7 +133,7 @@ public class ConsumeResolver
                 }
                 else
                 {
-                    _equipmentDBs[equipment.UniqueId] = equipment;
+                    _equipmentDBs[equipment.ServerId] = equipment;
                     ConsumeResultData.ConsumeResult.UsedEquipmentServerIdAndRemainingCounts.TryAdd(equipment.ServerId, equipment.StackCount);
                 }
             }
@@ -144,7 +144,7 @@ public class ConsumeResolver
 
     public void HandleFurnitureConsumption(ConsumeRequestDB consumeRequest)
     {
-        foreach (var consumeData in consumeRequest.ConsumeFurnitureServerIdAndCounts)
+        foreach (var consumeData in consumeRequest.ConsumeFurnitureServerIdAndCounts ?? [])
         {
             var furniture = Context.Furnitures.FirstOrDefault(x => x.AccountServerId == Account.ServerId && x.ServerId == consumeData.Key);
             if (furniture == null) continue;
@@ -165,7 +165,7 @@ public class ConsumeResolver
                 }
                 else
                 {
-                    _furnitureDBs[furniture.UniqueId] = furniture;
+                    _furnitureDBs[furniture.ServerId] = furniture;
                     ConsumeResultData.ConsumeResult.UsedFurnitureServerIdAndRemainingCounts.TryAdd(furniture.ServerId, furniture.StackCount);
                 }
             }
@@ -176,7 +176,7 @@ public class ConsumeResolver
 
     public void HandleItemConsumption(ConsumeRequestDB consumeRequest)
     {
-        foreach (var consumeData in consumeRequest.ConsumeItemServerIdAndCounts)
+        foreach (var consumeData in consumeRequest.ConsumeItemServerIdAndCounts ?? [])
         {
             var item = Context.Items.FirstOrDefault(x => x.AccountServerId == Account.ServerId && x.ServerId == consumeData.Key);
             if (item == null) continue;
@@ -197,7 +197,7 @@ public class ConsumeResolver
                 }
                 else
                 {
-                    _itemDBs[item.UniqueId] = item;
+                    _itemDBs[item.ServerId] = item;
                     ConsumeResultData.ConsumeResult.UsedItemServerIdAndRemainingCounts.TryAdd(item.ServerId, item.StackCount);
                 }
             }

@@ -41,8 +41,11 @@ namespace Shittim_Server.Managers
         public async Task<(CharacterDBServer, EquipmentDBServer, EquipmentDBServer)> EquipmentEquip(
             SchaleDataContext context, AccountDBServer account, EquipmentItemEquipRequest req)
         {
-            var originalStack = context.Equipments.FirstOrDefault(x => x.ServerId == req.EquipmentServerId)
+            var originalStack = context.Equipments.FirstOrDefault(x => x.AccountServerId == account.ServerId && x.ServerId == req.EquipmentServerId)
                 ?? throw new WebAPIException(WebAPIErrorCode.EquipmentNotFound);
+
+            if (req.SlotIndex < 0 || req.SlotIndex >= 3)
+                throw new WebAPIException(WebAPIErrorCode.EquipmentNotFound);
 
             originalStack.StackCount--;
             if (originalStack.StackCount <= 0) context.Equipments.Remove(originalStack);
@@ -57,12 +60,20 @@ namespace Shittim_Server.Managers
             context.AddEquipment(account.ServerId, [newEquipment]);
             await context.SaveChangesAsync();
 
-            var equippedCharacter = context.Characters.FirstOrDefault(x => x.ServerId == req.CharacterServerId)
+            var equippedCharacter = context.Characters.FirstOrDefault(x => x.AccountServerId == account.ServerId && x.ServerId == req.CharacterServerId)
                 ?? throw new WebAPIException(WebAPIErrorCode.CharacterNotFound);
             equippedCharacter.EquipmentServerIds ??= [];
 
             while (equippedCharacter.EquipmentServerIds.Count < 3)
                 equippedCharacter.EquipmentServerIds.Add(0);
+
+            var previousEquipmentId = equippedCharacter.EquipmentServerIds[req.SlotIndex];
+            if (previousEquipmentId != 0)
+            {
+                var previousEquipment = context.Equipments.FirstOrDefault(x => x.AccountServerId == account.ServerId && x.ServerId == previousEquipmentId);
+                if (previousEquipment != null)
+                    context.Equipments.Remove(previousEquipment);
+            }
 
             equippedCharacter.EquipmentServerIds[req.SlotIndex] = newEquipment.ServerId;
             context.Characters.Update(equippedCharacter);
@@ -145,7 +156,7 @@ namespace Shittim_Server.Managers
             ParcelResultDB parcelResultDB = new();
 
             List<ParcelResult> parcelResults = [];
-            if (req.EquipmentBatchGrowthRequestDBs.Count != 0)
+            if (req.EquipmentBatchGrowthRequestDBs != null && req.EquipmentBatchGrowthRequestDBs.Count != 0)
             {
                 foreach (var batchGrowthDB in req.EquipmentBatchGrowthRequestDBs)
                 {
@@ -170,7 +181,7 @@ namespace Shittim_Server.Managers
                     }
                     targetEquipment.Tier = finalTier;
 
-                    var consumeResultData = await consumeHandler.BuildConsumeResult(context, account, batchGrowthDB.ConsumeRequestDBs, consumeResultDB, parcelResultDB);
+                    var consumeResultData = await consumeHandler.BuildConsumeResult(context, account, batchGrowthDB.ConsumeRequestDBs ?? [], consumeResultDB, parcelResultDB);
                     var (resultLevel, resultExp) = MathService.CalculateLevelExpWithoutReset(targetEquipment.Level, targetEquipment.Exp, consumeResultData.AccumulatedExp, equipmentExpLevelDatas);
                     var (finalLevel, finalExp) = EquipmentService.CalculateEquipmentExpLevel(newEquipmentExcel, equipmentLevelExcel, resultLevel, resultExp);
 

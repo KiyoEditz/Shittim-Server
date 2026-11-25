@@ -190,6 +190,7 @@ namespace Schale.MX.NetworkProtocol
         Scenario_Portal = 19018,
         Scenario_RestartMainStage = 19019,
         Scenario_SkipMainStage = 19020,
+        Scenario_Collection = 19021,
         Cafe_Get = 20000,
         Cafe_Ack = 20001,
         Cafe_Deploy = 20002,

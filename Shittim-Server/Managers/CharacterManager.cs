@@ -118,7 +118,7 @@ namespace Shittim_Server.Managers
             var targetCharacter = context.Characters.FirstOrDefault(x => x.ServerId == req.TargetCharacterServerId);
             var accountCurrency = context.Currencies.FirstOrDefault(x => x.AccountServerId == account.ServerId);
 
-            var consumeResultDatas = await consumeHandler.BuildConsumeResult(context, account, req.ConsumeRequestDB);
+            var consumeResultDatas = await consumeHandler.BuildConsumeResult(context, account, req.ConsumeRequestDB ?? new());
             long addExp = consumeResultDatas.AccumulatedExp;
             var calculatedCredit = CharacterService.CalculateCharacterCreditExp(addExp);
             accountCurrency.UpdateCurrency(CurrencyTypes.Gold, -calculatedCredit, account.GameSettings.ServerDateTime());
@@ -157,10 +157,10 @@ namespace Shittim_Server.Managers
         public async Task<WeaponDBServer> UnlockWeapon(
             SchaleDataContext context, AccountDBServer account, long targetCharacterServerId)
         {
-            var character = context.Characters.FirstOrDefault(x => x.ServerId == targetCharacterServerId)
+            var character = context.Characters.FirstOrDefault(x => x.AccountServerId == account.ServerId && x.ServerId == targetCharacterServerId)
                 ?? throw new WebAPIException(WebAPIErrorCode.CharacterNotFound);
 
-            var weapon = context.Weapons.FirstOrDefault(x => x.BoundCharacterServerId == targetCharacterServerId);
+            var weapon = context.Weapons.FirstOrDefault(x => x.AccountServerId == account.ServerId && x.BoundCharacterServerId == targetCharacterServerId);
             if (weapon != null) return weapon;
             
             var weaponExcel = characterWeaponExcels.GetCharacterWeaponExcelByCharacterId(character.UniqueId);
@@ -218,16 +218,19 @@ namespace Shittim_Server.Managers
         public async Task<ParcelResultDB> WeaponGrowth(
             SchaleDataContext context, AccountDBServer account, CharacterWeaponExpGrowthRequest req)
         {
-            var targetCharacter = context.Characters.FirstOrDefault(x => x.ServerId == req.TargetCharacterServerId);
-            var weaponCharacter = context.Weapons.FirstOrDefault(x => x.AccountServerId == account.ServerId && x.UniqueId == targetCharacter.UniqueId);
+            var targetCharacter = context.Characters.FirstOrDefault(x => x.AccountServerId == account.ServerId && x.ServerId == req.TargetCharacterServerId)
+                ?? throw new WebAPIException(WebAPIErrorCode.CharacterNotFound);
+            var weaponCharacter = context.Weapons.FirstOrDefault(x => x.AccountServerId == account.ServerId && x.BoundCharacterServerId == targetCharacter.ServerId)
+                ?? throw new WebAPIException(WebAPIErrorCode.DataEntityNotFound);
 
             var charWeaponType = characterExcels.GetCharacter(targetCharacter.UniqueId).WeaponType;
             long addExp = 0;
             List<ParcelResult> parcelResult = [];
             
-            foreach (var consumeItem in req.ConsumeUniqueIdAndCounts)
+            foreach (var consumeItem in req.ConsumeUniqueIdAndCounts ?? [])
             {
-                var equipment = context.Equipments.FirstOrDefault(x => x.AccountServerId == account.ServerId && x.UniqueId == consumeItem.Key);
+                var equipment = context.Equipments.FirstOrDefault(x => x.AccountServerId == account.ServerId && x.UniqueId == consumeItem.Key && x.BoundCharacterServerId == 0);
+                if (equipment == null) continue;
                 var equipmentExcel = equipmentExcels.GetEquipmentExcelById(equipment.UniqueId);
                 parcelResult.Add(new ParcelResult(ParcelType.Equipment, equipmentExcel.Id, consumeItem.Value));
                 var equipmentStat = equipmentStatExcels.GetEquipmentStatExcelById(equipmentExcel.Id);
@@ -255,8 +258,10 @@ namespace Shittim_Server.Managers
             SchaleDataContext context, AccountDBServer account, CharacterWeaponTranscendenceRequest req)
         {
             List<ParcelResult> parcelResult = [];
-            var targetCharacter = context.Characters.FirstOrDefault(x => x.ServerId == req.TargetCharacterServerId);
-            var weapon = context.Weapons.FirstOrDefault(x => x.AccountServerId == account.ServerId && x.UniqueId == targetCharacter.UniqueId);
+            var targetCharacter = context.Characters.FirstOrDefault(x => x.AccountServerId == account.ServerId && x.ServerId == req.TargetCharacterServerId)
+                ?? throw new WebAPIException(WebAPIErrorCode.CharacterNotFound);
+            var weapon = context.Weapons.FirstOrDefault(x => x.AccountServerId == account.ServerId && x.BoundCharacterServerId == targetCharacter.ServerId)
+                ?? throw new WebAPIException(WebAPIErrorCode.DataEntityNotFound);
             var characterWeaponExcel = characterWeaponExcels.GetCharacterWeaponExcelByCharacterId(targetCharacter.UniqueId);
             var ingreRecipe = characterWeaponExcel.RecipeId[weapon.StarGrade - 1];
             CharacterService.CreateRecipes(parcelResult, recipeIngredientExcels, ingreRecipe);

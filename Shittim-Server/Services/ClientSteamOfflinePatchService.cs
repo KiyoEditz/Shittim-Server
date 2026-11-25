@@ -63,6 +63,56 @@ namespace Shittim_Server.Services
                 Hex("48 8B 15 E1 01 E1 0B 48 8B 0D AA 83 E5 0B E8 C5 88 C4 01 48 89 C7 31 C9 E8 8B 8A 10 09 85 C0"),
                 31,
                 Hex("74 3D"),
+                Hex("90 90")),
+
+            // Client 1.96.474931 signatures
+            new(
+                "steam.GetAuthToken.bypassBLoggedOn",
+                Hex("48 8B 15 B7 CC 5E 03 48 89 F1 E8 F7 A3 57 F8 48 89 C6 31 C9"),
+                20,
+                Hex("E8 3D 90 01 00 84 C0"),
+                Hex("90 90 90 90 90 31 C0")),
+
+            new(
+                "steam.GetAuthToken.tokenFromMessageLiteral",
+                Hex("48 8B 0D 83 83 4E 03 E8 16 2A BF F5 48 85 C0 0F 84 8B 00 00 00 48 89 C7 48 89 C1 31 D2 E8 F0 D7 F7 FF"),
+                34,
+                Hex("C7 47 10 96 44 2C 04 48 8B 15 02 BD 63 03 48 89 F9 48 83 C1 18 48 89 57 18"),
+                Hex("C7 47 10 00 00 00 00 48 8B 15 02 BD 63 03 48 89 F9 48 83 C1 20 48 89 57 20")),
+
+            new(
+                "steam.GetPurchasableProduct.bypassPriceFailure",
+                Hex("48 8B 0D AF 12 4E 03 83 B9 E0 00 00 00 00 75 05 E8 19 3C BD F5 48 89 F9 31 D2 E8 EF 57 E5 FF 84 DB"),
+                33,
+                Hex("74 69"),
+                Hex("90 90")),
+
+            new(
+                "steam.GetPurchasableProduct.emptyItemDefinitions",
+                Hex("0F 84 C3 03 00 00 4C 8D 44 24 44 31 D2 45 31 C9 E8 CB 7A FF FF 84 C0"),
+                23,
+                Hex("0F 84 4C 03 00 00"),
+                Hex("E9 6E 03 00 00 90")),
+
+            new(
+                "steam.GetEntitlementsAsJsonArray.bypassPriceFailure",
+                Hex("48 8B 0D CF 00 4E 03 83 B9 E0 00 00 00 00 75 05 E8 39 2A BD F5 48 89 F9 31 D2 E8 0F 46 E5 FF 84 DB"),
+                33,
+                Hex("74 69"),
+                Hex("90 90")),
+
+            new(
+                "steam.OnSteamInventoryResultReady.detailsWhenResultFailed",
+                Hex("49 83 C7 10 49 C7 46 10 00 00 00 00 4C 89 F9 31 D2 E8 2D 3F BF F5 83 FB 01"),
+                25,
+                Hex("75 38"),
+                Hex("90 90")),
+
+            new(
+                "patchDownload.PreCheckForEnterGame.ignoreUnreachable",
+                Hex("48 85 FF 0F 84 74 01 00 00 31 C9 E8 70 DB BE 00 31 C9 E8 29 B3 EC 09 85 C0"),
+                25,
+                Hex("74 3D"),
                 Hex("90 90"))
         ];
 

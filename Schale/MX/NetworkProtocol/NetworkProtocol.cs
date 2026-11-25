@@ -1,4 +1,4 @@
-﻿using Schale.MX.None;
+using Schale.MX.None;
 using Schale.FlatData;
 using Schale.MX.Campaign;
 using Schale.MX.Conquest.ConquestTileMapEvent;
@@ -3235,6 +3235,7 @@ namespace Schale.MX.NetworkProtocol
     {
         public CharacterDB? CharacterDB { get; set; }
         public List<EquipmentDB>? EquipmentDBs { get; set; }
+        public long RemovedEquipmentServerId { get; set; }
         public override Protocol Protocol { get => Protocol.Equipment_Equip; }
     }
 
@@ -6501,6 +6502,17 @@ namespace Schale.MX.NetworkProtocol
     public class ScenarioSkipMainStageResponse : ResponsePacket
     {
         public override Protocol Protocol { get => Protocol.Scenario_SkipMainStage; }
+    }
+
+    public class ScenarioCollectionRequest : RequestPacket
+    {
+        public override Protocol Protocol { get => Protocol.Scenario_Collection; }
+    }
+
+    public class ScenarioCollectionResponse : ResponsePacket
+    {
+        public override Protocol Protocol { get => Protocol.Scenario_Collection; }
+        public List<ScenarioCollectionDB>? ScenarioCollectionDBs { get; set; }
     }
 
     public class SchoolDungeonListRequest : RequestPacket

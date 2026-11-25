@@ -44,6 +44,19 @@ public class ScenarioHandler : ProtocolHandlerBase
         return response;
     }
 
+    [ProtocolHandler(Protocol.Scenario_Collection)]
+    public async Task<ScenarioCollectionResponse> Collection(
+        SchaleDataContext db,
+        ScenarioCollectionRequest request,
+        ScenarioCollectionResponse response)
+    {
+        await _sessionService.GetAuthenticatedUser(db, request.SessionKey);
+
+        response.ScenarioCollectionDBs = [];
+
+        return response;
+    }
+
     [ProtocolHandler(Protocol.Scenario_Skip)]
     public async Task<ScenarioSkipResponse> Skip(
         SchaleDataContext db,

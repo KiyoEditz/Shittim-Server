@@ -57,7 +57,15 @@ public class EquipmentHandler : ProtocolHandlerBase
         var (equippedCharacter, originalStack, newEquipment) = await _equipmentManager.EquipmentEquip(db, account, request);
 
         response.CharacterDB = equippedCharacter.ToMap(_mapper);
-        response.EquipmentDBs = [newEquipment.ToMap(_mapper), originalStack.ToMap(_mapper)];
+        if (originalStack.StackCount <= 0)
+        {
+            response.EquipmentDBs = [newEquipment.ToMap(_mapper)];
+            response.RemovedEquipmentServerId = originalStack.ServerId;
+        }
+        else
+        {
+            response.EquipmentDBs = [newEquipment.ToMap(_mapper), originalStack.ToMap(_mapper)];
+        }
 
         return response;
     }

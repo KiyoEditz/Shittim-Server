@@ -20,7 +20,7 @@ namespace BlueArchiveAPI.Configuration.ConfigType
         public bool AutoPatchClientMetadata { get; set; } = true;
         public string ClientMetadataPath { get; set; } = "";
         // Lets the client hand out an external ticket with Steam offline or not running. Off by default because it rewrites GameAssembly.dll, which Steam restores on a file verify.
-        public bool AutoPatchClientSteamOffline { get; set; } = false;
+        public bool AutoPatchClientSteamOffline { get; set; } = true;
         public string ClientGameAssemblyPath { get; set; } = "";
         public bool AutoPatchClientGamescaleIas { get; set; } = true;
         public string ClientGamescaleCorePath { get; set; } = "";
